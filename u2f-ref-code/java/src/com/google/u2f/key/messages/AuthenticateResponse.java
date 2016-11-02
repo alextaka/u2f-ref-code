@@ -24,7 +24,7 @@ public class AuthenticateResponse extends U2FResponse {
   }
 
   /**
-   * Returns a byte of flags. Setting the least significant bit indicates that user presence was 
+   * Returns a bitfield of flags. Setting the least significant bit indicates that user presence was 
    * verified. (This version of the protocol doesn't specify a way to request authentication 
    * responses without requiring user presence.) Setting the second least significant bit indicates
    * this response contains a TransferAccessMessage. A different value for the LSB as well as the 
