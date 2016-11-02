@@ -300,6 +300,7 @@ public class TestVectors {
           + "3045022038aa3cedbb2c5b59349031071130894fee62a2dbd9553c063ced4b77" 
           + "868c0a23022100bb60d474eb4e0e4bcf65d20142ab3c8ce7438779e2b2878ef8"
           + "8bb0acb607172e"                                          // END TRANSFER_ACCESS_MESSAGE
+          + "40"                                                                // Key Handle Length
           + "746ee0dcb3891b4fffe151a035c2e878f1dc0dea6c51455b5b32bcfa046974d8" // New Key Handle (B)
           + "f820cc9ca846cfd3b4f429d205d71904475fc143da8cfb61eeeeba69b5bf1d7a"
           + "00000000" // Counter Initial Value
@@ -425,6 +426,7 @@ public class TestVectors {
           + "3045022038aa3cedbb2c5b59349031071130894fee62a2dbd9553c063ced4b77"
           + "868c0a23022100bb60d474eb4e0e4bcf65d20142ab3c8ce7438779e2b2878ef8"
           + "8bb0acb607172e"                                // End TRANSFER_ACCESS_MESSAGE chain
+          + "40"                                                               // Key Handle Length
           + "9b31362dc861c620da55569e7e493d9858d2cb8ec5fc33b75bf809610aee5523" // New Key Handle (D)
           + "5a7f496a803099a3c4f7e288cfa74a2b7f0fffcf70bb4396b7abf4841c46303d"
           + "795245b0" // Counter Initial Value
@@ -629,6 +631,14 @@ public class TestVectors {
           + "30450221008739a7dd67973a270a34081261c9d30048163174fca0e80c14ff72" // Signature using
           + "e449128303022010d1b8edf71fc53814b363582c93fb66306baee74a06eb4f9b" // Authentication Key
           + "1f06d7956aebca");
+  protected static final byte[] EXPECTED_TRANSFER_ACCESS_RESPONSE_SIGNED_BYTES_A_TO_B_TO_C_TO_D = 
+      parseHex("02"                                                             // Control Byte
+          + "795245b0"                                                          // Counter
+          + "ccd6ee2e47baef244d49a222db496bad0ef5b6f93aa7cc4d30c4821b3b9dbc57"  // BROWSER_DATA_SIGN_SHA256
+          + "0472dc3ca63129c6354890309a89f10b51a8f7c49fc2a7ed554f8886fb7fe7ea"  // New Key Handle(D)
+          + "2f0e8a51345478d7a726b55aad8177bbc826d55395442fbb986d2b323c48f918c8"
+          + "d11cd6658622ae73c9372690ca0dc7121ff05724237dab1fb6abaa7063420444"  // Sha256 of TRANSFER_ACCESS_MESSAGE_C_TO_D
+          );
   protected static final byte[] TRANSFER_ACCESS_MESSAGE_SIGNATURE_USING_AUTHENTICATION_KEY_A_TO_B =
       parseHex("30450221008739a7dd67973a270a34081261c9d30048163174fca0e80c14ff72"
           + "e449128303022010d1b8edf71fc53814b363582c93fb66306baee74a06eb4f9b"

@@ -17,8 +17,16 @@ import com.google.u2f.key.messages.AuthenticateRequest;
 import com.google.u2f.key.messages.AuthenticateResponse;
 import com.google.u2f.key.messages.RegisterRequest;
 import com.google.u2f.key.messages.RegisterResponse;
+import com.google.u2f.key.messages.TransferAccessMessage;
+import com.google.u2f.key.messages.TransferAccessResponse;
+import com.google.u2f.server.Crypto;
+import com.google.u2f.server.impl.BouncyCastleCrypto;
+
+import static com.google.u2f.TestUtils.computeSha256;
+import static com.google.u2f.TestUtils.parseHex;
 
 public class RawCodecTest extends TestVectors {
+  private static final int INITIAL_COUNTER = 0;
 
   @Test
   public void testEncodeRegisterRequest() throws Exception {
@@ -107,5 +115,100 @@ public class RawCodecTest extends TestVectors {
         UserPresenceVerifier.USER_PRESENT_FLAG, COUNTER_VALUE, BROWSER_DATA_SIGN_SHA256);
 
     assertArrayEquals(EXPECTED_AUTHENTICATE_SIGNED_BYTES, encodedBytes);
+  }
+  
+  @Test
+  public void testDecodeTransferAccessResponse_equals() throws Exception {
+    TransferAccessResponse transferAccessResponse =
+        RawMessageCodec.decodeTransferAccessResponse(TRANSFER_ACCESS_RESPONSE_A_TO_B);
+    byte controlByte = 0x03;
+    TransferAccessMessage[] transferAccessMessages =
+        {TransferAccessMessage.fromBytes(TRANSFER_ACCESS_MESSAGE_A_TO_B)};    
+        
+    assertEquals(new TransferAccessResponse(controlByte, transferAccessMessages, KEY_HANDLE_B,
+        INITIAL_COUNTER, TRANSFER_ACCESS_RESPONSE_SIGNATURE_A_TO_B), transferAccessResponse);
+  }
+  
+  @Test
+  public void testDecodeTransferAccessResponse_extraBytes() throws Exception {
+    // This should just be the same as an invalid signature
+  }
+  
+  @Test
+  public void testDecodeTransferAccessResponse_tooFewBytes() throws Exception {
+
+  }
+  
+  @Test
+  public void testDecodeTransferAccessResponse_badConrolByte() throws Exception {
+
+  }
+  
+  @Test
+  public void testDecodeTransferAccessResponse_invalidLastTransferAccessMessage() throws Exception {
+
+  }
+  
+  @Test
+  public void testDecodeTransferAccessResponse_sequenceNumbersOutOfOrder() throws Exception {
+
+  }
+  
+  @Test
+  public void testDecodeTransferAccessResponse_transferAccessMessageChainOutOfOrder()
+      throws Exception {
+
+  }
+  
+  @Test
+  public void testDecodeTransferAccessResponse_invalidSignature() throws Exception {
+
+  }
+  
+  @Test
+  public void testEncodeTransferAccessMessageSignedBytesForAuthenticationKey() throws Exception {
+    byte sequenceNumber = 1;
+    byte[] encodedBytes =
+        RawMessageCodec.encodeTransferAccessMessageSignedBytesForAuthenticationKey(
+            sequenceNumber,
+            TRANSFER_ACCESS_PUBLIC_KEY_B_HEX,
+            APP_ID_SIGN_SHA256,
+            VENDOR_CERTIFICATE
+            );
+
+    assertArrayEquals(EXPECTED_TRANSFER_ACCESS_SIGNED_BYTES_FOR_AUTHENTICATION_KEY_A_TO_B,
+        encodedBytes);
+  }
+
+  @Test
+  public void encodeTransferAccessMessageSignedBytesForAttestationKey() throws Exception {
+    byte sequenceNumber = 1;
+    byte[] encodedBytes =
+        RawMessageCodec.encodeTransferAccessMessageSignedBytesForAttestationKey(
+            sequenceNumber,
+            TRANSFER_ACCESS_PUBLIC_KEY_B_HEX,
+            APP_ID_SIGN_SHA256,
+            VENDOR_CERTIFICATE,
+            TRANSFER_ACCESS_MESSAGE_SIGNATURE_USING_AUTHENTICATION_KEY_A_TO_B
+            );
+
+    assertArrayEquals(EXPECTED_TRANSFER_ACCESS_SIGNED_BYTES_FOR_ATTESTATION_KEY_A_TO_B, encodedBytes);
+  }
+
+  @Test
+  public void encodeTransferAccessResponseSignedBytes() throws Exception {
+    byte controlByte = 0x02;
+    int counter = 2035434928;
+    byte[] encodedBytes =
+        RawMessageCodec.encodeTransferAccessResponseSignedBytes(
+            controlByte,
+            counter,
+            BROWSER_DATA_SIGN_SHA256,
+            TRANSFER_ACCESS_PUBLIC_KEY_D_HEX,
+            computeSha256(TRANSFER_ACCESS_MESSAGE_C_TO_D)
+            );
+
+    assertArrayEquals(EXPECTED_TRANSFER_ACCESS_RESPONSE_SIGNED_BYTES_A_TO_B_TO_C_TO_D,
+        encodedBytes);
   }
 }
