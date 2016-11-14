@@ -194,30 +194,30 @@ public class RawMessageCodec {
     }
   }
 
-  public static TransferAccessResponse decodeTransferAccessResponse(byte[] data) 
+  public static TransferAccessResponse decodeTransferAccessResponse(byte[] data)
       throws U2FException {
-    final int SEQUENCE_NUMBER_SIZE = 1;
-    final int PUBLIC_KEY_SIZE = 65;
-    final int APP_ID_SIZE = 32;
-    
-	try {
-	  DataInputStream inputStream = new DataInputStream(new ByteArrayInputStream(data));
-	  byte controlByte = inputStream.readByte();
-	  
-	  if (!inputStream.markSupported()) {
-	    throw new U2FException("Stream doesn't support mark and reset.");
-	  }
-	  inputStream.mark(inputStream.available());
+    int sequenceNumberSize = 1;
+    int publicKeySize = 65;
+    int appIdSize = 32;
+
+    try {
+      DataInputStream inputStream = new DataInputStream(new ByteArrayInputStream(data));
+      byte controlByte = inputStream.readByte();
+
+      if (!inputStream.markSupported()) {
+        throw new U2FException("Stream doesn't support mark and reset.");
+      }
+      inputStream.mark(inputStream.available());
       int numberOfTransferAccessMessages = inputStream.readUnsignedByte();
       inputStream.reset();
 
       TransferAccessMessage[] transferAccessMessages =
-          new TransferAccessMessage[numberOfTransferAccessMessages];    
-      
-      for (int i = 0; i < numberOfTransferAccessMessages; i ++ ) {
+          new TransferAccessMessage[numberOfTransferAccessMessages];
+
+      for (int i = 0; i < numberOfTransferAccessMessages; i++) {
         inputStream.mark(inputStream.available());
-        inputStream.skipBytes(SEQUENCE_NUMBER_SIZE + PUBLIC_KEY_SIZE + APP_ID_SIZE);
-        
+        inputStream.skipBytes(sequenceNumberSize + publicKeySize + appIdSize);
+
         X509Certificate newAttestationCertificate = (X509Certificate) CertificateFactory
             .getInstance("X.509").generateCertificate(inputStream);
         byte[] newAttestationCertificateBytes;
@@ -234,9 +234,12 @@ public class RawMessageCodec {
         int lengthOfSignatureUsingAttestationKey = inputStream.readUnsignedByte();
         inputStream.reset();
 
+        int lengthField_signatureUsingAttestationKey = 1;
+        int lengthField_signatureUsingPrivateKey = 1;
         int lengthOfRawTransferAccessMessage =
-            SEQUENCE_NUMBER_SIZE + PUBLIC_KEY_SIZE + APP_ID_SIZE + 1 + lengthOfAttestationCertificate
-                + 1 + lengthOfSignatureUsingPrivateKey + lengthOfSignatureUsingAttestationKey;
+            sequenceNumberSize + publicKeySize + appIdSize + lengthOfAttestationCertificate
+                + lengthField_signatureUsingPrivateKey + lengthOfSignatureUsingPrivateKey
+                + lengthField_signatureUsingAttestationKey + lengthOfSignatureUsingAttestationKey;
 
         byte[] rawTransferAccessMessage = new byte[lengthOfRawTransferAccessMessage];
         inputStream.readFully(rawTransferAccessMessage);
@@ -244,7 +247,13 @@ public class RawMessageCodec {
             TransferAccessMessage.fromBytes(rawTransferAccessMessage);
         if (transferAccessMessages[numberOfTransferAccessMessages - i - 1]
             .getMessageSequenceNumber() != numberOfTransferAccessMessages - i) {
-          throw new U2FException("Messages not in order, unexpected sequence number");
+
+          String exceptionString = String.format(
+              "Messages not in order, unexptected sequence number. Expected %d, but got %d.",
+              numberOfTransferAccessMessages - i,
+              transferAccessMessages[numberOfTransferAccessMessages - i - 1]
+                  .getMessageSequenceNumber());
+          throw new U2FException(exceptionString);
         }
       }
 
@@ -253,19 +262,15 @@ public class RawMessageCodec {
       inputStream.readFully(keyHandle);
       int counter = inputStream.readInt();
       byte[] signature = new byte[inputStream.available()];
-	  inputStream.readFully(signature);
-	  
-	  if (inputStream.available() != 0) {
-		throw new U2FException("Message ends with unexpected data");
-	  }
-	  
-	  return new TransferAccessResponse(controlByte, transferAccessMessages, 
-			  keyHandle, counter, signature);
-	} catch	(IOException e) {
-	  throw new U2FException("Error when parsing raw Transfer Access Response", e);
-	} catch (CertificateException e) {
+      inputStream.readFully(signature);
+
+      return new TransferAccessResponse(controlByte, transferAccessMessages, keyHandle, counter,
+          signature);
+    } catch (IOException e) {
+      throw new U2FException("Error when parsing raw Transfer Access Response", e);
+    } catch (CertificateException e) {
       throw new U2FException("Error when parsing attestation certificate", e);
-	}
+    }
   }
   
   public static byte[] encodeRegistrationSignedBytes(byte[] applicationSha256,

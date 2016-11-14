@@ -6,12 +6,12 @@
 
 package com.google.u2f.codec;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 import org.junit.Test;
 
 import com.google.u2f.TestVectors;
+import com.google.u2f.U2FException;
 import com.google.u2f.key.UserPresenceVerifier;
 import com.google.u2f.key.messages.AuthenticateRequest;
 import com.google.u2f.key.messages.AuthenticateResponse;
@@ -23,10 +23,11 @@ import com.google.u2f.server.Crypto;
 import com.google.u2f.server.impl.BouncyCastleCrypto;
 
 import static com.google.u2f.TestUtils.computeSha256;
-import static com.google.u2f.TestUtils.parseHex;
 
 public class RawCodecTest extends TestVectors {
   private static final int INITIAL_COUNTER = 0;
+  private final Crypto crypto = new BouncyCastleCrypto();
+
 
   @Test
   public void testEncodeRegisterRequest() throws Exception {
@@ -40,7 +41,8 @@ public class RawCodecTest extends TestVectors {
 
   @Test
   public void testDecodeRegisterRequest() throws Exception {
-    RegisterRequest registerRequest = RawMessageCodec.decodeRegisterRequest(REGISTRATION_REQUEST_DATA);
+    RegisterRequest registerRequest =
+        RawMessageCodec.decodeRegisterRequest(REGISTRATION_REQUEST_DATA);
 
     assertEquals(new RegisterRequest(APP_ID_ENROLL_SHA256, BROWSER_DATA_ENROLL_SHA256),
         registerRequest);
@@ -66,7 +68,8 @@ public class RawCodecTest extends TestVectors {
 
   @Test
   public void testDecodeRegisterResponse() throws Exception {
-    RegisterResponse registerResponse = RawMessageCodec.decodeRegisterResponse(REGISTRATION_RESPONSE_DATA);
+    RegisterResponse registerResponse =
+        RawMessageCodec.decodeRegisterResponse(REGISTRATION_RESPONSE_DATA);
 
     assertEquals(new RegisterResponse(USER_PUBLIC_KEY_ENROLL_HEX,
         KEY_HANDLE, VENDOR_CERTIFICATE, SIGNATURE_ENROLL), registerResponse);
@@ -85,7 +88,8 @@ public class RawCodecTest extends TestVectors {
 
   @Test
   public void testDecodeAuthenticateRequest() throws Exception {
-    AuthenticateRequest authenticateRequest = RawMessageCodec.decodeAuthenticateRequest(SIGN_REQUEST_DATA);
+    AuthenticateRequest authenticateRequest =
+        RawMessageCodec.decodeAuthenticateRequest(SIGN_REQUEST_DATA);
 
     assertEquals(new AuthenticateRequest(AuthenticateRequest.USER_PRESENCE_SIGN,
         BROWSER_DATA_SIGN_SHA256, APP_ID_SIGN_SHA256, KEY_HANDLE), authenticateRequest);
@@ -103,7 +107,8 @@ public class RawCodecTest extends TestVectors {
 
   @Test
   public void testDecodeAuthenticateResponse() throws Exception {
-    AuthenticateResponse authenticateResponse = RawMessageCodec.decodeAuthenticateResponse(SIGN_RESPONSE_DATA);
+    AuthenticateResponse authenticateResponse =
+        RawMessageCodec.decodeAuthenticateResponse(SIGN_RESPONSE_DATA);
 
     assertEquals(new AuthenticateResponse(UserPresenceVerifier.USER_PRESENT_FLAG, COUNTER_VALUE,
         SIGNATURE_AUTHENTICATE), authenticateResponse);
@@ -130,41 +135,88 @@ public class RawCodecTest extends TestVectors {
   }
   
   @Test
+  public void testDecodTransferAccessResponse_equals2() throws Exception {
+    TransferAccessResponse transferAccessResponse = RawMessageCodec
+        .decodeTransferAccessResponse(TRANSFER_ACCESS_RESPONSE_A_TO_B_TO_C_TO_D_NO_USER_PRESENCE);
+    byte controlByte = 0x02;
+    int counterValue = 2035434928;
+    TransferAccessMessage[] transferAccessMessages = {
+        TransferAccessMessage.fromBytes(TRANSFER_ACCESS_MESSAGE_A_TO_B), 
+        TransferAccessMessage.fromBytes(TRANSFER_ACCESS_MESSAGE_B_TO_C),
+        TransferAccessMessage.fromBytes(TRANSFER_ACCESS_MESSAGE_C_TO_D)};
+    
+    TransferAccessResponse referenceResponse = new TransferAccessResponse(controlByte, transferAccessMessages, KEY_HANDLE_D,
+        counterValue, TRANSFER_ACCESS_RESPONSE_SIGNATURE_A_TO_B_TO_C_TO_D);
+    
+    assertEquals(referenceResponse, transferAccessResponse);
+  }
+  
+  @Test
   public void testDecodeTransferAccessResponse_extraBytes() throws Exception {
-    // This should just be the same as an invalid signature
-  }
-  
-  @Test
-  public void testDecodeTransferAccessResponse_tooFewBytes() throws Exception {
-
-  }
-  
-  @Test
-  public void testDecodeTransferAccessResponse_badConrolByte() throws Exception {
-
-  }
-  
-  @Test
-  public void testDecodeTransferAccessResponse_invalidLastTransferAccessMessage() throws Exception {
-
-  }
-  
-  @Test
-  public void testDecodeTransferAccessResponse_sequenceNumbersOutOfOrder() throws Exception {
-
-  }
-  
-  @Test
-  public void testDecodeTransferAccessResponse_transferAccessMessageChainOutOfOrder()
-      throws Exception {
-
+    TransferAccessResponse transferAccessResponse =
+        RawMessageCodec.decodeTransferAccessResponse(TRANSFER_ACCESS_RESPONSE_A_TO_B_EXTRA_BYTES);
+    
+    int numTransferAccessMessages = transferAccessResponse.getTransferAccessMessages().length;
+    
+    assertEquals(transferAccessResponse.getTransferAccessMessages()[numTransferAccessMessages - 1]
+        .getNewAttestationCertificate(), VENDOR_CERTIFICATE);
+    assertTrue(crypto.verifySignature(VENDOR_CERTIFICATE,
+        EXPECTED_TRANSFER_ACCESS_RESPONSE_SIGNED_BYTES_A_TO_B,
+        TRANSFER_ACCESS_RESPONSE_SIGNATURE_A_TO_B));
+    
+    assertNotEquals(transferAccessResponse.getSignature(),
+        TRANSFER_ACCESS_RESPONSE_SIGNATURE_A_TO_B);
+    assertTrue(
+        crypto.verifySignature(
+            VENDOR_CERTIFICATE,
+            EXPECTED_TRANSFER_ACCESS_RESPONSE_SIGNED_BYTES_A_TO_B,
+            transferAccessResponse.getSignature()));
   }
   
   @Test
   public void testDecodeTransferAccessResponse_invalidSignature() throws Exception {
-
+    TransferAccessResponse transferAccessResponse = RawMessageCodec
+        .decodeTransferAccessResponse(TRANSFER_ACCESS_RESPONSE_A_TO_B_INVALID_SIGNATURE);
+    
+    int numTransferAccessMessages = transferAccessResponse.getTransferAccessMessages().length;
+    
+    assertEquals(transferAccessResponse.getTransferAccessMessages()[numTransferAccessMessages - 1]
+        .getNewAttestationCertificate(), VENDOR_CERTIFICATE);
+    assertTrue(crypto.verifySignature(VENDOR_CERTIFICATE,
+        EXPECTED_TRANSFER_ACCESS_RESPONSE_SIGNED_BYTES_A_TO_B,
+        TRANSFER_ACCESS_RESPONSE_SIGNATURE_A_TO_B));
+    
+    assertNotEquals(transferAccessResponse.getSignature(),
+        TRANSFER_ACCESS_RESPONSE_SIGNATURE_A_TO_B);
+    assertFalse(
+        crypto.verifySignature(
+            VENDOR_CERTIFICATE,
+            EXPECTED_TRANSFER_ACCESS_RESPONSE_SIGNED_BYTES_A_TO_B,
+            transferAccessResponse.getSignature()));
   }
-  
+
+  @Test
+  public void testDecodeTransferAccessResponse_tooFewBytes() throws Exception {
+    try {
+      RawMessageCodec.decodeTransferAccessResponse(TRANSFER_ACCESS_RESPONSE_A_TO_B_TOO_FEW_BYTES);
+      fail("expected exception, but didn't get it");
+    } catch (U2FException e) {
+      assertTrue(e.getCause() instanceof java.io.EOFException);
+    }
+  }
+
+  @Test
+  public void testDecodeTransferAccessResponse_sequenceNumbersOutOfOrder() throws Exception {
+    try {
+      RawMessageCodec.decodeTransferAccessResponse(
+          TRANSFER_ACCESS_RESPONSE_TRANSFER_ACCESS_MESSAGES_1_AND_2_OUT_OF_ORDER);
+      fail("expected exception, but didn't get it");
+    } catch (U2FException e) {
+      assertTrue(e.getMessage()
+          .contains("Messages not in order, unexptected sequence number. Expected 2, but got 1."));
+    }
+  }
+
   @Test
   public void testEncodeTransferAccessMessageSignedBytesForAuthenticationKey() throws Exception {
     byte sequenceNumber = 1;
@@ -192,7 +244,8 @@ public class RawCodecTest extends TestVectors {
             TRANSFER_ACCESS_MESSAGE_SIGNATURE_USING_AUTHENTICATION_KEY_A_TO_B
             );
 
-    assertArrayEquals(EXPECTED_TRANSFER_ACCESS_SIGNED_BYTES_FOR_ATTESTATION_KEY_A_TO_B, encodedBytes);
+    assertArrayEquals(EXPECTED_TRANSFER_ACCESS_SIGNED_BYTES_FOR_ATTESTATION_KEY_A_TO_B,
+        encodedBytes);
   }
 
   @Test
