@@ -256,7 +256,7 @@ public class RawCodecTest extends TestVectors {
         RawMessageCodec.encodeTransferAccessResponseSignedBytes(
             controlByte,
             counter,
-            BROWSER_DATA_SIGN_SHA256,
+            SERVER_CHALLENGE_SIGN,
             KEY_HANDLE_D,
             computeSha256(TRANSFER_ACCESS_MESSAGE_C_TO_D)
             );

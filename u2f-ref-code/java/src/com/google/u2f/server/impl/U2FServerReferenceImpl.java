@@ -18,7 +18,10 @@ import com.google.u2f.codec.RawMessageCodec;
 import com.google.u2f.key.UserPresenceVerifier;
 import com.google.u2f.key.messages.AuthenticateResponse;
 import com.google.u2f.key.messages.RegisterResponse;
+import com.google.u2f.key.messages.TransferAccessMessage;
+import com.google.u2f.key.messages.TransferAccessResponse;
 import com.google.u2f.server.ChallengeGenerator;
+import com.google.u2f.server.ControlFlags;
 import com.google.u2f.server.Crypto;
 import com.google.u2f.server.DataStore;
 import com.google.u2f.server.U2FServer;
@@ -36,6 +39,9 @@ import com.google.u2f.server.messages.U2fSignRequest;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.cert.CertificateEncodingException;
@@ -237,7 +243,7 @@ public class U2FServerReferenceImpl implements U2FServer {
 
     String browserData = new String(Base64.decodeBase64(browserDataBase64));
     byte[] rawSignData = Base64.decodeBase64(rawSignDataBase64);
-
+    
     Log.info("-- Input --");
     Log.info("  sessionId: " + sessionId);
     Log.info("  publicKey: " + Hex.encodeHexString(securityKeyData.getPublicKey()));
@@ -246,9 +252,176 @@ public class U2FServerReferenceImpl implements U2FServer {
     Log.info("  browserData: " + browserData);
     Log.info("  rawSignData: " + Hex.encodeHexString(rawSignData));
 
-    verifyBrowserData(
-        new JsonParser().parse(browserData), "navigator.id.getAssertion", sessionData);
+    ControlFlags controlFlags = parseControlFlags(rawSignData);
 
+    if (controlFlags.getIsTransferAccessResponse()) {
+      return processTransferAccessResponse(sessionData, browserData, appId, securityKeyData,
+          rawSignData, currentTimeInMillis);        
+    } else {
+      return processAuthentication(sessionData, appId, securityKeyData, browserData, rawSignData);
+    }
+  }
+  
+  private SecurityKeyData processTransferAccessResponse(SignSessionData sessionData,
+      String browserData, String appId, SecurityKeyData securityKeyData, byte[] rawSignData,
+      long currentTimeInMillis) throws U2FException {
+    TransferAccessResponse transferAccessResponse =
+        RawMessageCodec.decodeTransferAccessResponse(rawSignData);
+
+    Log.info(">> processTransferAccess");
+
+    ControlFlags controlFlags = transferAccessResponse.getControlFlags();
+    TransferAccessMessage[] transferAccessMessages =
+        transferAccessResponse.getTransferAccessMessages();
+    byte[] keyHandle = transferAccessResponse.getKeyHandle();
+    int counter = transferAccessResponse.getCounter();
+    byte[] signature = transferAccessResponse.getSignature();
+
+    Log.info("-- Parsed transferAccessResponse --");
+    Log.info("  controlFlags byte: " + Integer.toHexString(controlFlags.toByte() & 0xFF));
+    Log.info("  keyHandle: " + Hex.encodeHexString(keyHandle));
+    Log.info("  counter: " + counter);
+    Log.info("  signature: " + Hex.encodeHexString(signature));
+    
+    verifyBrowserData(
+        new JsonParser().parse(browserData), "navigator.id.transferAccess", sessionData);
+
+
+    Set<X509Certificate> trustedCertificates = dataStore.getTrustedCertificates();
+    byte[] currentPublicKey = securityKeyData.getPublicKey();
+    X509Certificate currentAttestationCertificate = securityKeyData.getAttestationCertificate();
+    byte[] applicationSha256 = crypto.computeSha256(appId.getBytes());
+
+    checkTransferAccessMessageChain(transferAccessMessages, currentPublicKey,
+        currentAttestationCertificate, trustedCertificates, applicationSha256);
+
+    TransferAccessMessage finalTransferAccessMessage =
+        transferAccessMessages[transferAccessMessages.length - 1];
+    byte[] finalTransferAccessMessageSha256 =
+        crypto.computeSha256(finalTransferAccessMessage.toBytes());
+    byte[] signedBytes =
+        RawMessageCodec.encodeTransferAccessResponseSignedBytes(controlFlags.toByte(), counter,
+            sessionData.getChallenge(), keyHandle, finalTransferAccessMessageSha256);
+
+    currentAttestationCertificate = finalTransferAccessMessage.getNewAttestationCertificate();
+    currentPublicKey = finalTransferAccessMessage.getNewUserPublicKey();
+    
+    Log.info("Verifying signature of bytes " + Hex.encodeHexString(signedBytes));
+    if (!crypto.verifySignature(currentAttestationCertificate, signedBytes, signature)) {
+      throw new U2FException("Signature is invalid for the TransferAccessResponse.");
+    }
+
+    List<Transports> transports = null;
+    try {
+      transports = U2fAttestation.Parse(currentAttestationCertificate).getTransports();
+    } catch (CertificateParsingException e) {
+      Log.warning("Could not parse transports for final TransferAccessMessage " + e.getMessage());
+    }
+
+    SecurityKeyData newSecurityKeyData =
+        new SecurityKeyData(currentTimeInMillis, transports, keyHandle, currentPublicKey,
+            currentAttestationCertificate, /* initial counter value */ counter);
+
+    /*
+     * TODO(alextaka): Make this a transaction:
+     * We remove key first because the original phone will have deleted its key anyway.
+     */
+    dataStore.removeSecurityKey(sessionData.getAccountName(), sessionData.getPublicKey());
+    dataStore.addSecurityKeyData(sessionData.getAccountName(), newSecurityKeyData);
+
+    Log.info("<< processTransferAccess");
+    return newSecurityKeyData;
+  }
+
+  private void checkTransferAccessMessageChain(TransferAccessMessage[] transferAccessMessages,
+      byte[] originalPublicKey, X509Certificate originalAttestationCertificate,
+      Set<X509Certificate> trustedCertificates, byte[] applicationSha256) throws U2FException {
+
+    byte[] currentPublicKey = originalPublicKey;
+    X509Certificate currentAttestationCertificate = originalAttestationCertificate;
+
+    Log.info("  -- Parsed transferAccessMessages -- ");
+
+    for (TransferAccessMessage transferAccessMessage : transferAccessMessages) {
+      Log.info("  sequenceNumber:  "
+          + Integer.toString(transferAccessMessage.getMessageSequenceNumber()));
+      Log.info(
+          "  newPublicKey: " + Hex.encodeHexString(transferAccessMessage.getNewUserPublicKey()));
+      Log.info("  applicationParameter: "
+          + Hex.encodeHexString(transferAccessMessage.getApplicationSha256()));
+      try {
+        Log.info("  attestationCertificate bytes: " + Hex
+            .encodeHexString(transferAccessMessage.getNewAttestationCertificate().getEncoded()));
+      } catch (CertificateEncodingException e) {
+        throw new U2FException("Cannot encode certificate", e);
+      }
+
+      List<Transports> transports = null;
+      try {
+        transports = U2fAttestation.Parse(transferAccessMessage.getNewAttestationCertificate())
+            .getTransports();
+      } catch (CertificateParsingException e) {
+        Log.warning("Could not parse transports extension for transferAccessMessage "
+            + Integer.toString(transferAccessMessage.getMessageSequenceNumber()) + ". Error: "
+            + e.getMessage());
+      }
+      Log.info("  transports: " + transports);
+
+      if (!trustedCertificates.contains(transferAccessMessage.getNewAttestationCertificate())) {
+        Log.warning("Attestion cert in TransferAccessMessage chain is not trusted for message "
+            + Integer.toString(transferAccessMessage.getMessageSequenceNumber()));
+        try {
+          Log.info("  attestationCertificate bytes: " + Hex
+              .encodeHexString(transferAccessMessage.getNewAttestationCertificate().getEncoded()));
+        } catch (CertificateEncodingException e) {
+          throw new U2FException("Cannot encode certificate", e);
+        }
+      }
+
+      Log.info("  signatureUsingAuthenticationKey: "
+          + Hex.encodeHexString(transferAccessMessage.getSignatureUsingAuthenticationKey()));
+      Log.info("  signatureUsingAttestationKey: "
+          + Hex.encodeHexString(transferAccessMessage.getSignatureUsingAttestationKey()));
+
+      byte[] signedBytesForSignatureUsingAuthenticationKey =
+          RawMessageCodec.encodeTransferAccessMessageSignedBytesForAuthenticationKey(
+              transferAccessMessage.getMessageSequenceNumber(),
+              transferAccessMessage.getNewUserPublicKey(), 
+              applicationSha256,
+              transferAccessMessage.getNewAttestationCertificate());
+
+      if (!crypto.verifySignature(crypto.decodePublicKey(currentPublicKey),
+          signedBytesForSignatureUsingAuthenticationKey,
+          transferAccessMessage.getSignatureUsingAuthenticationKey())) {
+        throw new U2FException(
+            "Signature using Authentication Key is invalid for TransferAccessMessage "
+                + Integer.toString(transferAccessMessage.getMessageSequenceNumber()));
+      }
+
+      byte[] signedBytesForSignatureUsingAttestationKey =
+          RawMessageCodec.encodeTransferAccessMessageSignedBytesForAttestationKey(
+              transferAccessMessage.getMessageSequenceNumber(),
+              transferAccessMessage.getNewUserPublicKey(), 
+              applicationSha256,
+              transferAccessMessage.getNewAttestationCertificate(),
+              transferAccessMessage.getSignatureUsingAuthenticationKey());
+
+      if (!crypto.verifySignature(currentAttestationCertificate,
+          signedBytesForSignatureUsingAttestationKey,
+          transferAccessMessage.getSignatureUsingAttestationKey())) {
+        throw new U2FException(
+            "Signature using Attestation Key is invalid for TransferAccessMessage "
+                + Integer.toString(transferAccessMessage.getMessageSequenceNumber()));
+      }
+
+      currentPublicKey = transferAccessMessage.getNewUserPublicKey();
+      currentAttestationCertificate = transferAccessMessage.getNewAttestationCertificate();
+    }
+  }
+  
+  
+  private SecurityKeyData processAuthentication(SignSessionData sessionData, String appId, 
+      SecurityKeyData securityKeyData, String browserData, byte[] rawSignData) throws U2FException {
     AuthenticateResponse authenticateResponse =
         RawMessageCodec.decodeAuthenticateResponse(rawSignData);
     byte controlFlags = authenticateResponse.getControlFlagByte();
@@ -259,6 +432,9 @@ public class U2FServerReferenceImpl implements U2FServer {
     Log.info("  controlFlags: " + Integer.toHexString(controlFlags & 0xFF));
     Log.info("  counter: " + counter);
     Log.info("  signature: " + Hex.encodeHexString(signature));
+    
+    verifyBrowserData(
+        new JsonParser().parse(browserData), "navigator.id.getAssertion", sessionData);
 
     if ((controlFlags & UserPresenceVerifier.USER_PRESENT_FLAG) == 0) {
       throw new U2FException("User presence invalid during authentication");
@@ -357,5 +533,24 @@ public class U2FServerReferenceImpl implements U2FServer {
       throw new RuntimeException("specified bad origin", e);
     }
     return uri.getScheme() + "://" + uri.getAuthority();
+  }
+
+  /**
+   * If future versions add control bits, their functionality should be added here. The 7th bit is
+   * reserved to allow for more control bits. As of this version, there should only be 1
+   * controlByte, so we simply read the first byte. 
+   * 
+   * @throws U2FException
+   */
+  private ControlFlags parseControlFlags(byte[] data) throws U2FException {
+    try {
+      DataInputStream inputStream = new DataInputStream(new ByteArrayInputStream(data));
+      byte controlFlags = inputStream.readByte();
+
+      return ControlFlags.fromByte(controlFlags);
+
+    } catch (IOException e) {
+      throw new U2FException("Error when parsing raw ControlFlags", e);
+    }
   }
 }
