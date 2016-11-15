@@ -813,8 +813,8 @@ public class TestVectors {
       parseHex("02"                                                             // Control Byte
           + "795245b0"                                                          // Counter
           + "ccd6ee2e47baef244d49a222db496bad0ef5b6f93aa7cc4d30c4821b3b9dbc57"  // BROWSER_DATA_SIGN_SHA256
-          + "0472dc3ca63129c6354890309a89f10b51a8f7c49fc2a7ed554f8886fb7fe7ea"  // New Key Handle(D)
-          + "2f0e8a51345478d7a726b55aad8177bbc826d55395442fbb986d2b323c48f918c8"
+          + "9b31362dc861c620da55569e7e493d9858d2cb8ec5fc33b75bf809610aee5523"  // New Key Handle(D)
+          + "5a7f496a803099a3c4f7e288cfa74a2b7f0fffcf70bb4396b7abf4841c46303d"
           + "d11cd6658622ae73c9372690ca0dc7121ff05724237dab1fb6abaa7063420444"  // Sha256 of TRANSFER_ACCESS_MESSAGE_A_TO_B
           );
   protected static final byte[] TRANSFER_ACCESS_MESSAGE_SIGNATURE_USING_AUTHENTICATION_KEY_A_TO_B =

@@ -28,7 +28,6 @@ public class RawCodecTest extends TestVectors {
   private static final int INITIAL_COUNTER = 0;
   private final Crypto crypto = new BouncyCastleCrypto();
 
-
   @Test
   public void testEncodeRegisterRequest() throws Exception {
     RegisterRequest registerRequest = new RegisterRequest(APP_ID_ENROLL_SHA256,
@@ -145,8 +144,9 @@ public class RawCodecTest extends TestVectors {
         TransferAccessMessage.fromBytes(TRANSFER_ACCESS_MESSAGE_B_TO_C),
         TransferAccessMessage.fromBytes(TRANSFER_ACCESS_MESSAGE_C_TO_D)};
     
-    TransferAccessResponse referenceResponse = new TransferAccessResponse(controlByte, transferAccessMessages, KEY_HANDLE_D,
-        counterValue, TRANSFER_ACCESS_RESPONSE_SIGNATURE_A_TO_B_TO_C_TO_D);
+    TransferAccessResponse referenceResponse =
+        new TransferAccessResponse(controlByte, transferAccessMessages, KEY_HANDLE_D, counterValue,
+            TRANSFER_ACCESS_RESPONSE_SIGNATURE_A_TO_B_TO_C_TO_D);
     
     assertEquals(referenceResponse, transferAccessResponse);
   }
@@ -257,7 +257,7 @@ public class RawCodecTest extends TestVectors {
             controlByte,
             counter,
             BROWSER_DATA_SIGN_SHA256,
-            TRANSFER_ACCESS_PUBLIC_KEY_D_HEX,
+            KEY_HANDLE_D,
             computeSha256(TRANSFER_ACCESS_MESSAGE_C_TO_D)
             );
 
