@@ -4,7 +4,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -109,10 +108,6 @@ public class TransferAccessMessage {
    * @throws U2FException
    */
   public byte[] toBytes() throws U2FException {
-    int sizeOfSequenceNumber = 1;
-    int sizeOfLengthFieldForSignatureUsingAuthenticationKey = 1;
-    int sizeOfLengthFieldForSignatureUsingAttestationKey = 1;
-    
     byte[] attestationCertificateBytes;
     try {
       attestationCertificateBytes = newAttestationCertificate.getEncoded();
@@ -120,22 +115,21 @@ public class TransferAccessMessage {
       throw new U2FException("Error when encoding attestation certificate.", e);
     }
 
-    byte[] rawTransferAccessMessage = new byte[sizeOfSequenceNumber + RAW_PUBLIC_KEY_SIZE
-        + RAW_APPLICATION_SHA_256_SIZE + attestationCertificateBytes.length
-        + sizeOfLengthFieldForSignatureUsingAuthenticationKey + signatureUsingAuthenticationKey.length
-        + sizeOfLengthFieldForSignatureUsingAttestationKey + signatureUsingAttestationKey.length];
+    ByteArrayOutputStream rawTransferAccessMessageByteStream = new ByteArrayOutputStream();
+    try{
+    rawTransferAccessMessageByteStream.write(sequenceNumber);
+    rawTransferAccessMessageByteStream.write(newUserPublicKey);
+    rawTransferAccessMessageByteStream.write(applicationSha256);
+    rawTransferAccessMessageByteStream.write(attestationCertificateBytes);
+    rawTransferAccessMessageByteStream.write((byte)signatureUsingAuthenticationKey.length);
+    rawTransferAccessMessageByteStream.write(signatureUsingAuthenticationKey);
+    rawTransferAccessMessageByteStream.write((byte)signatureUsingAttestationKey.length);
+    rawTransferAccessMessageByteStream.write(signatureUsingAttestationKey);
+    } catch (IOException e) {
+      throw new U2FException("Error writing TransferAccessMessage to ByteArrayOutputStream", e);
+    }
     
-    ByteBuffer.wrap(rawTransferAccessMessage)
-    .put(sequenceNumber)
-    .put(newUserPublicKey)
-    .put(applicationSha256)
-    .put(attestationCertificateBytes)
-    .put((byte)signatureUsingAuthenticationKey.length)
-    .put(signatureUsingAuthenticationKey)
-    .put((byte)signatureUsingAttestationKey.length)
-    .put(signatureUsingAttestationKey);
-
-    return rawTransferAccessMessage;
+    return rawTransferAccessMessageByteStream.toByteArray();
   }
   
   /**
