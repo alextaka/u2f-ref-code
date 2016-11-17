@@ -202,9 +202,6 @@ public class RawMessageCodec {
       DataInputStream inputStream = new DataInputStream(new ByteArrayInputStream(data));
       byte controlByte = inputStream.readByte();
 
-      if (!inputStream.markSupported()) {
-        throw new U2FException("Stream doesn't support mark and reset.");
-      }
       inputStream.mark(inputStream.available());
       int numberOfTransferAccessMessages = inputStream.readUnsignedByte();
       inputStream.reset();
@@ -245,10 +242,6 @@ public class RawMessageCodec {
         new TransferAccessMessage[numberOfTransferAccessMessages];
 
     try {
-      if (!inputStream.markSupported()) {
-        throw new U2FException("Stream doesn't support mark and reset.");
-      }
-
       for (int i = 0; i < numberOfTransferAccessMessages; i++) {
         inputStream.mark(inputStream.available());
         inputStream.skipBytes(sequenceNumberSize + publicKeySize + appIdSize);
