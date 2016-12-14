@@ -7,6 +7,7 @@
 package com.google.u2f.codec;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -20,6 +21,8 @@ import com.google.u2f.key.messages.AuthenticateRequest;
 import com.google.u2f.key.messages.AuthenticateResponse;
 import com.google.u2f.key.messages.RegisterRequest;
 import com.google.u2f.key.messages.RegisterResponse;
+import com.google.u2f.key.messages.TransferAccessMessage;
+import com.google.u2f.key.messages.TransferAccessResponse;
 
 /**
  * Raw message formats, as per FIDO U2F: Raw Message Formats - Draft 4
@@ -192,6 +195,106 @@ public class RawMessageCodec {
     }
   }
 
+  public static TransferAccessResponse decodeTransferAccessResponse(byte[] data)
+      throws U2FException {
+
+    try {
+      DataInputStream inputStream = new DataInputStream(new ByteArrayInputStream(data));
+      byte controlByte = inputStream.readByte();
+
+      inputStream.mark(inputStream.available());
+      int numberOfTransferAccessMessages = inputStream.readUnsignedByte();
+      inputStream.reset();
+
+      TransferAccessMessage[] transferAccessMessages =
+          parseTransferAccessMessageChain(numberOfTransferAccessMessages, inputStream);
+      
+      int keyHandleLength = inputStream.readUnsignedByte();
+      byte[] keyHandle = new byte[keyHandleLength];
+      inputStream.readFully(keyHandle);
+      int counter = inputStream.readInt();
+      byte[] signature = new byte[inputStream.available()];
+      inputStream.readFully(signature);
+
+      return new TransferAccessResponse(controlByte, transferAccessMessages, keyHandle, counter,
+          signature);
+    } catch (IOException e) {
+      throw new U2FException("Error when parsing raw Transfer Access Response", e);
+    } 
+  }
+
+  /**
+   * Returns an an array of TransferAccessMessages parsed from the raw bytes in the inputStream.
+   * 
+   * @param numberOfTransferAccessMessages
+   * @param inputStream: DataInputStream built by an underlying stream of ByteArrayInputStream() of
+   *        raw bytes. We assume this stream currently points to the beginning of the 
+   *        transferAccessMessages in the stream.
+   * @throws U2FException 
+   */
+  private static TransferAccessMessage[] parseTransferAccessMessageChain(
+      int numberOfTransferAccessMessages, DataInputStream inputStream) throws U2FException {
+    int sequenceNumberSize = 1;
+    int publicKeySize = 65;
+    int appIdSize = 32;
+
+    TransferAccessMessage[] transferAccessMessages =
+        new TransferAccessMessage[numberOfTransferAccessMessages];
+
+    try {
+      for (int i = 0; i < numberOfTransferAccessMessages; i++) {
+        inputStream.mark(inputStream.available());
+        inputStream.skipBytes(sequenceNumberSize + publicKeySize + appIdSize);
+
+        X509Certificate newAttestationCertificate = (X509Certificate) CertificateFactory
+            .getInstance("X.509").generateCertificate(inputStream);
+        byte[] newAttestationCertificateBytes;
+        try {
+          newAttestationCertificateBytes = newAttestationCertificate.getEncoded();
+        } catch (CertificateEncodingException e) {
+          throw new U2FException("Error when encoding attestation certificate.", e);
+        }
+
+        int lengthOfAttestationCertificate = newAttestationCertificateBytes.length;
+
+        int lengthOfSignatureUsingPrivateKey = inputStream.readUnsignedByte();
+        inputStream.skipBytes(lengthOfSignatureUsingPrivateKey);
+        int lengthOfSignatureUsingAttestationKey = inputStream.readUnsignedByte();
+        inputStream.reset();
+
+        int sizeOfLengthFieldForSignatureUsingPrivateKey = 1;
+        int sizeOfLengthFieldForSignatureUsingAttestationKey = 1;
+        int lengthOfRawTransferAccessMessage = sequenceNumberSize + publicKeySize + appIdSize
+            + lengthOfAttestationCertificate + sizeOfLengthFieldForSignatureUsingPrivateKey
+            + lengthOfSignatureUsingPrivateKey + sizeOfLengthFieldForSignatureUsingAttestationKey
+            + lengthOfSignatureUsingAttestationKey;
+
+        byte[] rawTransferAccessMessage = new byte[lengthOfRawTransferAccessMessage];
+        inputStream.readFully(rawTransferAccessMessage);
+
+        // Place the transferAccessMessage into the array in order of increasing sequenceNumber
+        int indexOfLastElement = numberOfTransferAccessMessages - 1;
+        transferAccessMessages[indexOfLastElement - i] =
+            TransferAccessMessage.fromBytes(rawTransferAccessMessage);
+
+        if (transferAccessMessages[indexOfLastElement - i]
+            .getMessageSequenceNumber() != numberOfTransferAccessMessages - i) {
+          String exceptionString = String.format(
+              "Messages not in order, unexptected sequence number. Expected %d, but got %d.",
+              numberOfTransferAccessMessages - i,
+              transferAccessMessages[indexOfLastElement - i].getMessageSequenceNumber());
+          throw new U2FException(exceptionString);
+        }
+      }
+    } catch (CertificateException e) {
+      throw new U2FException("Error when parsing attestation certificate", e);
+    } catch (IOException e) {
+      throw new U2FException("Error Parsing the TransferAccessMessage chain", e);
+    }
+
+    return transferAccessMessages;
+  }
+  
   public static byte[] encodeRegistrationSignedBytes(byte[] applicationSha256,
       byte[] challengeSha256, byte[] keyHandle, byte[] userPublicKey) {
     byte[] signedData = new byte[1 + applicationSha256.length + challengeSha256.length
@@ -215,4 +318,71 @@ public class RawMessageCodec {
     .put(challengeSha256);
     return signedData;
   }
+  
+  public static byte[] encodeTransferAccessMessageSignedBytesForAuthenticationKey(
+      byte sequenceNumber, byte[] newUserPublicKey, byte[] applicationSha256,
+      X509Certificate attestationCertificate) throws U2FException {
+
+    byte[] attestationCertificateBytes;
+    try {
+      attestationCertificateBytes = attestationCertificate.getEncoded();
+    } catch (CertificateEncodingException e) {
+      throw new U2FException("Error when encoding attestation certificate.", e);
+    }
+    
+    ByteArrayOutputStream signedDataOutputStream = new ByteArrayOutputStream();
+    try {
+      signedDataOutputStream.write(sequenceNumber);
+      signedDataOutputStream.write(newUserPublicKey);
+      signedDataOutputStream.write(applicationSha256);
+      signedDataOutputStream.write(attestationCertificateBytes);
+    } catch (IOException e) {
+      throw new U2FException("Error writing to ByteArrayOutputStream", e);
+    }
+
+    return signedDataOutputStream.toByteArray();
+  }
+  
+  public static byte[] encodeTransferAccessMessageSignedBytesForAttestationKey(byte sequenceNumber,
+      byte[] newUserPublicKey, byte[] applicationSha256, X509Certificate attestationCertificate,
+      byte[] signatureUsingAuthenticationKey) throws U2FException {
+
+    byte[] attestationCertificateBytes;
+    try {
+      attestationCertificateBytes = attestationCertificate.getEncoded();
+    } catch (CertificateEncodingException e) {
+      throw new U2FException("Error when encoding attestation certificate.", e);
+    }
+
+    ByteArrayOutputStream signedDataOutputStream = new ByteArrayOutputStream();
+    try {
+      signedDataOutputStream.write(sequenceNumber);
+      signedDataOutputStream.write(newUserPublicKey);
+      signedDataOutputStream.write(applicationSha256);
+      signedDataOutputStream.write(attestationCertificateBytes);
+      signedDataOutputStream.write(signatureUsingAuthenticationKey);
+    } catch (IOException e) {
+      throw new U2FException("Error writing to ByteArrayOutputStream", e);
+    }
+
+    return signedDataOutputStream.toByteArray();
+  }
+  
+  public static byte[] encodeTransferAccessResponseSignedBytes(byte controlByte, int counter,
+      byte[] challengeSha256, byte[] keyHandle, byte[] lastTransferAccessMessageSha256)
+      throws U2FException {
+
+    ByteArrayOutputStream signedDataOutputStream = new ByteArrayOutputStream();
+    try {
+      signedDataOutputStream.write(controlByte);
+      signedDataOutputStream.write(ByteBuffer.allocate(4).putInt(counter).array());
+      signedDataOutputStream.write(challengeSha256);
+      signedDataOutputStream.write(keyHandle);
+      signedDataOutputStream.write(lastTransferAccessMessageSha256);
+    } catch (IOException e) {
+      throw new U2FException("Error writing to ByteArrayOutputStream", e);
+    }
+
+    return signedDataOutputStream.toByteArray();
+  }  
 }
