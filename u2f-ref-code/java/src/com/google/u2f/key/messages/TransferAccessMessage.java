@@ -116,19 +116,19 @@ public class TransferAccessMessage {
     }
 
     ByteArrayOutputStream rawTransferAccessMessageByteStream = new ByteArrayOutputStream();
-    try{
-    rawTransferAccessMessageByteStream.write(sequenceNumber);
-    rawTransferAccessMessageByteStream.write(newUserPublicKey);
-    rawTransferAccessMessageByteStream.write(applicationSha256);
-    rawTransferAccessMessageByteStream.write(attestationCertificateBytes);
-    rawTransferAccessMessageByteStream.write((byte)signatureUsingAuthenticationKey.length);
-    rawTransferAccessMessageByteStream.write(signatureUsingAuthenticationKey);
-    rawTransferAccessMessageByteStream.write((byte)signatureUsingAttestationKey.length);
-    rawTransferAccessMessageByteStream.write(signatureUsingAttestationKey);
+    try {
+      rawTransferAccessMessageByteStream.write(sequenceNumber);
+      rawTransferAccessMessageByteStream.write(newUserPublicKey);
+      rawTransferAccessMessageByteStream.write(applicationSha256);
+      rawTransferAccessMessageByteStream.write(attestationCertificateBytes);
+      rawTransferAccessMessageByteStream.write((byte) signatureUsingAuthenticationKey.length);
+      rawTransferAccessMessageByteStream.write(signatureUsingAuthenticationKey);
+      rawTransferAccessMessageByteStream.write((byte) signatureUsingAttestationKey.length);
+      rawTransferAccessMessageByteStream.write(signatureUsingAttestationKey);
     } catch (IOException e) {
       throw new U2FException("Error writing TransferAccessMessage to ByteArrayOutputStream", e);
     }
-    
+
     return rawTransferAccessMessageByteStream.toByteArray();
   }
   
