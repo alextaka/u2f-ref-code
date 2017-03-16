@@ -434,7 +434,6 @@ public class U2FServerReferenceImpl implements U2FServer {
     }
   }
   
-  
   private SecurityKeyData processAuthentication(SignSessionData sessionData, String appId, 
       SecurityKeyData securityKeyData, String browserData, byte[] rawSignData) throws U2FException {
     AuthenticateResponse authenticateResponse =
