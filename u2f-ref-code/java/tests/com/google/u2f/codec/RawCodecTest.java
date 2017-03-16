@@ -150,7 +150,7 @@ public class RawCodecTest extends TestVectors {
     
     assertEquals(referenceResponse, transferAccessResponse);
   }
-  
+
   @Test
   public void testDecodeTransferAccessResponse_extraBytes() throws Exception {
     TransferAccessResponse transferAccessResponse =

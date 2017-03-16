@@ -243,7 +243,7 @@ public class U2FServerReferenceImpl implements U2FServer {
 
     String browserData = new String(Base64.decodeBase64(browserDataBase64));
     byte[] rawSignData = Base64.decodeBase64(rawSignDataBase64);
-    
+
     Log.info("-- Input --");
     Log.info("  sessionId: " + sessionId);
     Log.info("  publicKey: " + Hex.encodeHexString(securityKeyData.getPublicKey()));
@@ -333,6 +333,20 @@ public class U2FServerReferenceImpl implements U2FServer {
     return newSecurityKeyData;
   }
 
+  /**
+   * Checks the signatures (using Authentication Key and Attestation Key) of each
+   * TransferAccessMessage in the chain.
+   * 
+   * @throws U2FException if any message in the chain does not parse correctly or if any of the
+   *         signatures can't be verified.
+   * 
+   * @param transferAccessMessages: An array of transferAccessMessages.
+   * @param originalPublicKey: The public key the server currently trusts.
+   * @param originalAttestationCertificate: The attestation certificate of the last registered
+   *        device
+   * @param trustedCertificates: Set of trusted certs
+   * @param applicationSha256
+   */
   private void checkTransferAccessMessageChain(TransferAccessMessage[] transferAccessMessages,
       byte[] originalPublicKey, X509Certificate originalAttestationCertificate,
       Set<X509Certificate> trustedCertificates, byte[] applicationSha256) throws U2FException {
@@ -343,8 +357,7 @@ public class U2FServerReferenceImpl implements U2FServer {
     Log.info("  -- Parsed transferAccessMessages -- ");
 
     for (TransferAccessMessage transferAccessMessage : transferAccessMessages) {
-      Log.info("  sequenceNumber:  "
-          + Integer.toString(transferAccessMessage.getMessageSequenceNumber()));
+      Log.info("  sequenceNumber:  " + transferAccessMessage.getMessageSequenceNumber());
       Log.info(
           "  newPublicKey: " + Hex.encodeHexString(transferAccessMessage.getNewUserPublicKey()));
       Log.info("  applicationParameter: "
@@ -362,14 +375,13 @@ public class U2FServerReferenceImpl implements U2FServer {
             .getTransports();
       } catch (CertificateParsingException e) {
         Log.warning("Could not parse transports extension for transferAccessMessage "
-            + Integer.toString(transferAccessMessage.getMessageSequenceNumber()) + ". Error: "
-            + e.getMessage());
+            + transferAccessMessage.getMessageSequenceNumber() + ". Error: " + e.getMessage());
       }
       Log.info("  transports: " + transports);
 
       if (!trustedCertificates.contains(transferAccessMessage.getNewAttestationCertificate())) {
         Log.warning("Attestion cert in TransferAccessMessage chain is not trusted for message "
-            + Integer.toString(transferAccessMessage.getMessageSequenceNumber()));
+            + transferAccessMessage.getMessageSequenceNumber());
         try {
           Log.info("  attestationCertificate bytes: " + Hex
               .encodeHexString(transferAccessMessage.getNewAttestationCertificate().getEncoded()));
@@ -390,12 +402,13 @@ public class U2FServerReferenceImpl implements U2FServer {
               applicationSha256,
               transferAccessMessage.getNewAttestationCertificate());
 
+      // Check the signature using the previously trusted Authentication Key
       if (!crypto.verifySignature(crypto.decodePublicKey(currentPublicKey),
           signedBytesForSignatureUsingAuthenticationKey,
           transferAccessMessage.getSignatureUsingAuthenticationKey())) {
         throw new U2FException(
             "Signature using Authentication Key is invalid for TransferAccessMessage "
-                + Integer.toString(transferAccessMessage.getMessageSequenceNumber()));
+                + transferAccessMessage.getMessageSequenceNumber());
       }
 
       byte[] signedBytesForSignatureUsingAttestationKey =
@@ -406,14 +419,16 @@ public class U2FServerReferenceImpl implements U2FServer {
               transferAccessMessage.getNewAttestationCertificate(),
               transferAccessMessage.getSignatureUsingAuthenticationKey());
 
+      // Check the signature using the previously trusted Attestation Key
       if (!crypto.verifySignature(currentAttestationCertificate,
           signedBytesForSignatureUsingAttestationKey,
           transferAccessMessage.getSignatureUsingAttestationKey())) {
         throw new U2FException(
             "Signature using Attestation Key is invalid for TransferAccessMessage "
-                + Integer.toString(transferAccessMessage.getMessageSequenceNumber()));
+                + transferAccessMessage.getMessageSequenceNumber());
       }
 
+      // Update Attestation and Authentication public keys to new trusted keys.
       currentPublicKey = transferAccessMessage.getNewUserPublicKey();
       currentAttestationCertificate = transferAccessMessage.getNewAttestationCertificate();
     }
@@ -492,7 +507,6 @@ public class U2FServerReferenceImpl implements U2FServer {
     byte[] challengeFromBrowserData =
         Base64.decodeBase64(browserData.get(CHALLENGE_PARAM).getAsString());
 
-
     if (!Arrays.equals(challengeFromBrowserData, sessionData.getChallenge())) {
       throw new U2FException("wrong challenge signed in browserdata");
     }
@@ -536,9 +550,9 @@ public class U2FServerReferenceImpl implements U2FServer {
   }
 
   /**
-   * If future versions add control bits, their functionality should be added here. The 7th bit is
-   * reserved to allow for more control bits. As of this version, there should only be 1
-   * controlByte, so we simply read the first byte. 
+   * As of this version, there should only be 1 controlByte, so we simply read the first byte. The
+   * 7th bit is reserved to allow for more control bits. If future versions add control bits, their
+   * functionality should be added here.
    * 
    * @throws U2FException
    */
@@ -548,7 +562,6 @@ public class U2FServerReferenceImpl implements U2FServer {
       byte controlFlags = inputStream.readByte();
 
       return ControlFlags.fromByte(controlFlags);
-
     } catch (IOException e) {
       throw new U2FException("Error when parsing raw ControlFlags", e);
     }

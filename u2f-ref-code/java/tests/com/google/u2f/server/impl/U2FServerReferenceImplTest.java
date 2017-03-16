@@ -354,7 +354,6 @@ public class U2FServerReferenceImplTest extends TestVectors {
     }
   }  
 
-
   // @Test
   // TODO: put test back in once we have signature sample on a correct browserdata json
   // (currently, this test uses an enrollment browserdata during a signature)
