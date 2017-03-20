@@ -354,6 +354,28 @@ public class U2FServerReferenceImplTest extends TestVectors {
     }
   }  
 
+  @Test
+  public void testCheckTransferAccessMessageChain_sequenceNumbersOutOfOrder() throws U2FException {
+    when(mockDataStore.getSignSessionData(SESSION_ID)).thenReturn(new SignSessionData(ACCOUNT_NAME,
+        APP_ID_SIGN, SERVER_CHALLENGE_SIGN, TRANSFER_ACCESS_PUBLIC_KEY_A_HEX));
+    u2fServer =
+        new U2FServerReferenceImpl(mockChallengeGenerator, mockDataStore, crypto, TRUSTED_DOMAINS);
+
+    SignResponse transferAccessResponse = 
+        new SignResponse(KEY_HANDLE_A_BASE64, 
+                         TRANSFER_ACCESS_RESPONSE_TRANSFER_ACCESS_MESSAGES_1_AND_2_OUT_OF_ORDER_BASE64, 
+                         BROWSER_DATA_SIGN_BASE64, 
+                         SESSION_ID);
+    try {
+      u2fServer.processSignResponse(transferAccessResponse, ENROLLMENT_TIME);
+      fail("expected exception, but didn't get it");
+    } catch(U2FException e) {
+      System.out.println(e.getMessage());
+      assertTrue(e.getMessage()
+          .contains("Messages not in order, unexptected sequence number. Expected 2, but got 1"));
+    }
+  }
+
   // @Test
   // TODO: put test back in once we have signature sample on a correct browserdata json
   // (currently, this test uses an enrollment browserdata during a signature)

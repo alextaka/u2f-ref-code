@@ -801,6 +801,9 @@ public class TestVectors {
           + "4217eacbf2022100f3880dffe75bb9366a0bfb7fe75ac803fee0ae8095ec5d97"
           + "48e48ad153b65b6f"
           );
+  protected static final String TRANSFER_ACCESS_RESPONSE_TRANSFER_ACCESS_MESSAGES_1_AND_2_OUT_OF_ORDER_BASE64 =
+      Base64.encodeBase64URLSafeString(
+          TRANSFER_ACCESS_RESPONSE_TRANSFER_ACCESS_MESSAGES_1_AND_2_OUT_OF_ORDER);
 
   protected static final byte[] EXPECTED_REGISTER_SIGNED_BYTES =
       parseHex("00f0e6a6a97042a4f1f1c87f5f7d44315b2d852c2df5c7991cc66241bf7072d1"
