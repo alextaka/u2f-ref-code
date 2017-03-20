@@ -402,7 +402,8 @@ public class U2FServerReferenceImpl implements U2FServer {
               applicationSha256,
               transferAccessMessage.getNewAttestationCertificate());
 
-      // Check the signature using the previously trusted Authentication Key
+      Log.info("Verifying signature using previously trusted Authentication key of bytes "
+          + Hex.encodeHexString(signedBytesForSignatureUsingAuthenticationKey));
       if (!crypto.verifySignature(crypto.decodePublicKey(currentPublicKey),
           signedBytesForSignatureUsingAuthenticationKey,
           transferAccessMessage.getSignatureUsingAuthenticationKey())) {
@@ -419,7 +420,8 @@ public class U2FServerReferenceImpl implements U2FServer {
               transferAccessMessage.getNewAttestationCertificate(),
               transferAccessMessage.getSignatureUsingAuthenticationKey());
 
-      // Check the signature using the previously trusted Attestation Key
+      Log.info("Verifying signature using previously trusted Attestation key of bytes "
+          + Hex.encodeHexString(signedBytesForSignatureUsingAttestationKey));
       if (!crypto.verifySignature(currentAttestationCertificate,
           signedBytesForSignatureUsingAttestationKey,
           transferAccessMessage.getSignatureUsingAttestationKey())) {
@@ -428,7 +430,6 @@ public class U2FServerReferenceImpl implements U2FServer {
                 + transferAccessMessage.getMessageSequenceNumber());
       }
 
-      // Update Attestation and Authentication public keys to new trusted keys.
       currentPublicKey = transferAccessMessage.getNewUserPublicKey();
       currentAttestationCertificate = transferAccessMessage.getNewAttestationCertificate();
     }
