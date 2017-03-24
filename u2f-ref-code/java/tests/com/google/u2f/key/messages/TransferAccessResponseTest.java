@@ -18,7 +18,8 @@ public class TransferAccessResponseTest extends TestVectors {
   private static final TransferAccessResponse TRANSFER_ACCESS_RESPONSE =
       new TransferAccessResponse(CONTROL_FLAGS, 
                                  TRANSFER_ACCESS_MESSAGES, 
-                                 KEY_HANDLE_B, COUNTER,
+                                 KEY_HANDLE_B, 
+                                 COUNTER,
                                  TRANSFER_ACCESS_RESPONSE_SIGNATURE_A_TO_B);
 
   /**
@@ -42,7 +43,8 @@ public class TransferAccessResponseTest extends TestVectors {
     TransferAccessResponse transferAccessResponse1 = 
         new TransferAccessResponse(CONTROL_FLAGS,
                                    TRANSFER_ACCESS_MESSAGES, 
-                                   KEY_HANDLE_B, COUNTER, 
+                                   KEY_HANDLE_B, 
+                                   COUNTER, 
                                    TRANSFER_ACCESS_RESPONSE_SIGNATURE_A_TO_B);
     assertEquals(transferAccessResponse1, TRANSFER_ACCESS_RESPONSE);
   }
@@ -53,7 +55,8 @@ public class TransferAccessResponseTest extends TestVectors {
     TransferAccessResponse transferAccessResponse1 = 
         new TransferAccessResponse(controlFlags_Other,
                                    TRANSFER_ACCESS_MESSAGES, 
-                                   KEY_HANDLE_B, COUNTER, 
+                                   KEY_HANDLE_B, 
+                                   COUNTER, 
                                    TRANSFER_ACCESS_RESPONSE_SIGNATURE_A_TO_B);
     assertNotEquals(transferAccessResponse1, TRANSFER_ACCESS_RESPONSE);
   }
