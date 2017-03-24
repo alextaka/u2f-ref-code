@@ -92,6 +92,18 @@ public class TestVectors {
       Base64.encodeBase64URLSafeString(BROWSER_DATA_SIGN.getBytes());
   protected static final byte[] BROWSER_DATA_SIGN_SHA256 =
       parseHex("ccd6ee2e47baef244d49a222db496bad0ef5b6f93aa7cc4d30c4821b3b9dbc57");
+  protected static final String BROWSER_DATA_TRANSFER_ACCESS = String.format(
+      "{"
+      + "\"typ\":\"navigator.id.transferAccess\","
+      + "\"challenge\":\"%s\","
+      + "\"cid_pubkey\":%s,"
+      + "\"origin\":\"%s\"}",
+      SERVER_CHALLENGE_SIGN_BASE64, CHANNEL_ID_STRING, ORIGIN);
+  protected static final String BROWSER_DATA_TRANSFER_ACCESS_BASE64 =
+      Base64.encodeBase64URLSafeString(BROWSER_DATA_TRANSFER_ACCESS.getBytes());
+  protected static final byte[] BROWSER_DATA_TRANSFER_ACCESS_SHA256 =
+      parseHex("d35aaf508c3efab4afbf1c788e91762285337443a1fcb4b52d283bdd0b1649d6");
+  
   protected static final byte[] REGISTRATION_REQUEST_DATA =
       parseHex("4142d21c00d94ffb9d504ada8f99b721f4b191ae4e37ca0140f696b6983cfacb"
           + "f0e6a6a97042a4f1f1c87f5f7d44315b2d852c2df5c7991cc66241bf7072d1c4");
@@ -242,15 +254,23 @@ public class TestVectors {
       parseHex("0472dc3ca63129c6354890309a89f10b51a8f7c49fc2a7ed554f8886fb7fe7ea"
           + "2f0e8a51345478d7a726b55aad8177bbc826d55395442fbb986d2b323c48f918c8");
   protected static final byte[] KEY_HANDLE_A = KEY_HANDLE;
+  protected static final String KEY_HANDLE_A_BASE64 =
+      Base64.encodeBase64URLSafeString(KEY_HANDLE_A);
   protected static final byte[] KEY_HANDLE_B = 
       parseHex("746ee0dcb3891b4fffe151a035c2e878f1dc0dea6c51455b5b32bcfa046974d8"
           + "f820cc9ca846cfd3b4f429d205d71904475fc143da8cfb61eeeeba69b5bf1d7a");
+  protected static final String KEY_HANDLE_B_BASE64 =
+      Base64.encodeBase64URLSafeString(KEY_HANDLE_B);
   protected static final byte[] KEY_HANDLE_C = 
       parseHex("b6f027b7d3f1d3c33510b16f9e3931bf2e1032622be5f1fa959d1b1af7d5fb96"
           + "a6cea13c201edf823a929df8b170d17c473770b605c9245b421a028e90b3d684");
+  protected static final String KEY_HANDLE_C_BASE64 =
+      Base64.encodeBase64URLSafeString(KEY_HANDLE_C);
   protected static final byte[] KEY_HANDLE_D = 
       parseHex("9b31362dc861c620da55569e7e493d9858d2cb8ec5fc33b75bf809610aee5523"
           + "5a7f496a803099a3c4f7e288cfa74a2b7f0fffcf70bb4396b7abf4841c46303d");
+  protected static final String KEY_HANDLE_D_BASE64 =
+      Base64.encodeBase64URLSafeString(KEY_HANDLE_D);
 
   protected static final byte[] TRANSFER_ACCESS_MESSAGE_A_TO_B = 
       parseHex("01"                                                            // Sequence Number
@@ -304,12 +324,46 @@ public class TestVectors {
           + "746ee0dcb3891b4fffe151a035c2e878f1dc0dea6c51455b5b32bcfa046974d8" // New Key Handle (B)
           + "f820cc9ca846cfd3b4f429d205d71904475fc143da8cfb61eeeeba69b5bf1d7a"
           + "00000000" // Counter Initial Value
-          + "30450220703a9eb8736b60e107dca45182301224058ba8c14f102e4ba603f7b9" // Signature
-          + "69df24e30221008d91264b306dcb3f5a3aeb6eb5f7c5cfb931043d8932cae3a5"
-          + "e4dd62b13d1fc6"
+          + "3046022100fe66adfae4e95773d4deee14fda48cdd12a3343d65c1237166a6e3" // Signature
+          + "f164575f17022100b5a9e6d34e5644817cc5f3478bd5940d66b089e449db57c4"
+          + "e2a14bbfcf593932"
           );
   protected static final String TRANSFER_ACCESS_RESPONSE_A_TO_B_BASE64 = 
       Base64.encodeBase64URLSafeString(TRANSFER_ACCESS_RESPONSE_A_TO_B); 
+  protected static final byte[] TRANSFER_ACCESS_RESPONSE_A_TO_B_NO_USER_PRESENCE = 
+      parseHex("02" // Control Byte
+          + "01"                                                          // TRANSFER_ACCESS_MESSAGE
+          + "04269889309e47b66749b855dbc03de26b84ea25b62349c1e09d986bea1f5cd0" 
+          + "f2f3be6b0f2bf7f54eae97764b378bc2313309b2ace492e2b410d97f2e8979c46d"
+          + "4b0be934baebb5d12d26011b69227fa5e86df94e7d94aa2949a89f2d493992ca" 
+          + "3082013c3081e4a003020102020a47901280001155957352300a06082a8648ce"
+          + "3d0403023017311530130603550403130c476e756262792050696c6f74301e17"
+          + "0d3132303831343138323933325a170d3133303831343138323933325a303131"
+          + "2f302d0603550403132650696c6f74476e756262792d302e342e312d34373930"
+          + "313238303030313135353935373335323059301306072a8648ce3d020106082a"
+          + "8648ce3d030107034200048d617e65c9508e64bcc5673ac82a6799da3c144668"
+          + "2c258c463fffdf58dfd2fa3e6c378b53d795c4a4dffb4199edd7862f23abaf02"
+          + "03b4b8911ba0569994e101300a06082a8648ce3d0403020347003044022060cd"
+          + "b6061e9c22262d1aac1d96d8c70829b2366531dda268832cb836bcd30dfa0220"
+          + "631b1459f09e6330055722c8d89b7f48883b9089b88d60d1d9795902b30410df" 
+          + "47"                                    
+          + "30450221008739a7dd67973a270a34081261c9d30048163174fca0e80c14ff72"
+          + "e449128303022010d1b8edf71fc53814b363582c93fb66306baee74a06eb4f9b"
+          + "1f06d7956aebca"
+          + "47"                               
+          + "3045022038aa3cedbb2c5b59349031071130894fee62a2dbd9553c063ced4b77" 
+          + "868c0a23022100bb60d474eb4e0e4bcf65d20142ab3c8ce7438779e2b2878ef8"
+          + "8bb0acb607172e"                                          // END TRANSFER_ACCESS_MESSAGE
+          + "40"                                                               // Key Handle Length
+          + "746ee0dcb3891b4fffe151a035c2e878f1dc0dea6c51455b5b32bcfa046974d8" // New Key Handle (B)
+          + "f820cc9ca846cfd3b4f429d205d71904475fc143da8cfb61eeeeba69b5bf1d7a"
+          + "00000000" // Counter Initial Value
+          + "3046022100e1608951f34e345ed215d480a946c92611bfc7414db375464c2bd4" // Signature
+          + "91a7fa171d022100e7ddc674731be7a85d9e67511259249cd0584599f1dc21a8"
+          + "a233785effd92235"
+          );
+  protected static final String TRANSFER_ACCESS_RESPONSE_A_TO_B_NO_USER_PRESENCE_BASE64 = 
+      Base64.encodeBase64URLSafeString(TRANSFER_ACCESS_RESPONSE_A_TO_B_NO_USER_PRESENCE); 
   protected static final byte[] TRANSFER_ACCESS_MESSAGE_B_TO_C = 
       parseHex("02"                                                            // Sequence Number
           + "0416668f839b4ba154f70f452d8da81bc3fa93979a03cca5e6bec36b64473024" // Phone C Public Key
@@ -325,14 +379,14 @@ public class TestVectors {
           + "03b4b8911ba0569994e101300a06082a8648ce3d0403020347003044022060cd"
           + "b6061e9c22262d1aac1d96d8c70829b2366531dda268832cb836bcd30dfa0220"
           + "631b1459f09e6330055722c8d89b7f48883b9089b88d60d1d9795902b30410df" 
-          + "48"                            // Length (in hex) of signature with Authentication Key
-          + "304602210092682c7525159aade790a87079913d7551773bf397da0c071726f9" // Signature with
-          + "82f047c86f022100a26eedbe8a6e6408d87a255f4451bab8982a936adde01c18" // Authentication Key
-          + "7bf293fd5fe57b8d"
-          + "47"                            // Length (in hex) of signature with Attestation Key
-          + "3045022100f2ebe8c3e201c3ba64a92567a25ed2c5f8b864b05b8730ef70c239" // Signature with
-          + "055df28ad402201736e5ab3bc6713b8afe8826e1e5395718a63a5a48cc1d3555" // Attestation Key
-          + "023d4c6650bc00"
+          + "46"                            // Length (in hex) of signature with Authentication Key
+          + "30440220181662b45a4f61796243eefaf2383248f68d28d67d987bc3034261bd" // Signature with
+          + "aa3351d9022064ab547e14c4c32c89073e4e0396e8501d9404952a6dda4f653b" // Authentication Key
+          + "d99077e95acf"
+          + "48"                            // Length (in hex) of signature with Attestation Key
+          + "3046022100fb265cdca056fad77a3d5a0f293c15af0344447fbf1693ccf361e9" // Signature with
+          + "5651cef73502210093e2e15e77796422c09c23bf9fb8c6af4acf3e597b9bd4d3" // Attestation Key
+          + "c92e7e0781be9dbb"
           );
   protected static final byte[] TRANSFER_ACCESS_MESSAGE_C_TO_D = 
       parseHex("03"                                                            // SequenceNumber
@@ -350,13 +404,13 @@ public class TestVectors {
           + "b6061e9c22262d1aac1d96d8c70829b2366531dda268832cb836bcd30dfa0220"
           + "631b1459f09e6330055722c8d89b7f48883b9089b88d60d1d9795902b30410df" 
           + "47"                            // Length (in hex) of signature with Authentication Key
-          + "30450221009b5583388e34bd5efb8699bdb6ecaaf8864322ce7f27ec50b526c0" // Signature with
-          + "453e75cec202205f4f8371fa9a20b884295946c85995115dbbbd00f43f0e64ce" // Authentication Key
-          + "41745e039516d0"
-          + "46"                            // Length (in hex) of signature with Attestation Key
-          + "304402206108ca00030d57086ac3f41be47bae5a093f35d8e05403e1f3fa8160" // Signature with
-          + "c7acff77022019cacc489a5fffe89cc89523c35c6743d75bd28fc9b54f289404" // Attestation Key
-          + "65da527e3e49"
+          + "30450221009c26611bd6ccc27d1925c64d9ee9f28483de46e36df47c7a709cf7" // Signature with
+          + "b3490cde1902202620c2ddf59176f749a5f9566d5928e7dd1ca72166ca78ad6d" // Authentication Key
+          + "90c0b1e330ca59"
+          + "48"                            // Length (in hex) of signature with Attestation Key
+          + "3046022100fa805fe66e7d415c0299c66d2ba8a211c4af102fad1628e66017b8" // Signature with
+          + "6eabb97c36022100f37f49ad0084cc7b934abd9e1fc327d0964ba351ce4b6dca" // Attestation Key
+          + "8e2a6e8c0aa4013b"
           );
   protected static final byte[] TRANSFER_ACCESS_RESPONSE_A_TO_B_TO_C_TO_D_NO_USER_PRESENCE = 
       parseHex("02"                                                             // Control Byte
@@ -375,17 +429,17 @@ public class TestVectors {
           + "b6061e9c22262d1aac1d96d8c70829b2366531dda268832cb836bcd30dfa0220"
           + "631b1459f09e6330055722c8d89b7f48883b9089b88d60d1d9795902b30410df" 
           + "47"
-          + "30450221009b5583388e34bd5efb8699bdb6ecaaf8864322ce7f27ec50b526c0"
-          + "453e75cec202205f4f8371fa9a20b884295946c85995115dbbbd00f43f0e64ce"
-          + "41745e039516d0"
-          + "46"
-          + "304402206108ca00030d57086ac3f41be47bae5a093f35d8e05403e1f3fa8160"
-          + "c7acff77022019cacc489a5fffe89cc89523c35c6743d75bd28fc9b54f289404"
-          + "65da527e3e49"
+          + "30450221009c26611bd6ccc27d1925c64d9ee9f28483de46e36df47c7a709cf7"
+          + "b3490cde1902202620c2ddf59176f749a5f9566d5928e7dd1ca72166ca78ad6d"
+          + "90c0b1e330ca59"
+          + "48"
+          + "3046022100fa805fe66e7d415c0299c66d2ba8a211c4af102fad1628e66017b8"
+          + "6eabb97c36022100f37f49ad0084cc7b934abd9e1fc327d0964ba351ce4b6dca"
+          + "8e2a6e8c0aa4013b"
           + "02"                                            // TRANSFER_ACCESS_MESSAGE chain, B to C
-          + "0416668f839b4ba154f70f452d8da81bc3fa93979a03cca5e6bec36b64473024" 
+          + "0416668f839b4ba154f70f452d8da81bc3fa93979a03cca5e6bec36b64473024"
           + "0317f932e2833bb4f780a0e81bc13ec392cba3f809794528e923f4af589b7761e4"
-          + "4b0be934baebb5d12d26011b69227fa5e86df94e7d94aa2949a89f2d493992ca" 
+          + "4b0be934baebb5d12d26011b69227fa5e86df94e7d94aa2949a89f2d493992ca"
           + "3082013c3081e4a003020102020a47901280001155957352300a06082a8648ce"
           + "3d0403023017311530130603550403130c476e756262792050696c6f74301e17"
           + "0d3132303831343138323933325a170d3133303831343138323933325a303131"
@@ -396,14 +450,14 @@ public class TestVectors {
           + "03b4b8911ba0569994e101300a06082a8648ce3d0403020347003044022060cd"
           + "b6061e9c22262d1aac1d96d8c70829b2366531dda268832cb836bcd30dfa0220"
           + "631b1459f09e6330055722c8d89b7f48883b9089b88d60d1d9795902b30410df" 
-          + "48"                       
-          + "304602210092682c7525159aade790a87079913d7551773bf397da0c071726f9"
-          + "82f047c86f022100a26eedbe8a6e6408d87a255f4451bab8982a936adde01c18"
-          + "7bf293fd5fe57b8d"
-          + "47"
-          + "3045022100f2ebe8c3e201c3ba64a92567a25ed2c5f8b864b05b8730ef70c239"
-          + "055df28ad402201736e5ab3bc6713b8afe8826e1e5395718a63a5a48cc1d3555"
-          + "023d4c6650bc00"
+          + "46"
+          + "30440220181662b45a4f61796243eefaf2383248f68d28d67d987bc3034261bd"
+          + "aa3351d9022064ab547e14c4c32c89073e4e0396e8501d9404952a6dda4f653b"
+          + "d99077e95acf"
+          + "48"
+          + "3046022100fb265cdca056fad77a3d5a0f293c15af0344447fbf1693ccf361e9"
+          + "5651cef73502210093e2e15e77796422c09c23bf9fb8c6af4acf3e597b9bd4d3"
+          + "c92e7e0781be9dbb"          
           + "01"                                            // TRANSFER_ACCESS_MESSAGE chain, A to B
           + "04269889309e47b66749b855dbc03de26b84ea25b62349c1e09d986bea1f5cd0" 
           + "f2f3be6b0f2bf7f54eae97764b378bc2313309b2ace492e2b410d97f2e8979c46d"
@@ -430,9 +484,9 @@ public class TestVectors {
           + "9b31362dc861c620da55569e7e493d9858d2cb8ec5fc33b75bf809610aee5523" // New Key Handle (D)
           + "5a7f496a803099a3c4f7e288cfa74a2b7f0fffcf70bb4396b7abf4841c46303d"
           + "795245b0" // Counter Initial Value
-          + "3046022100f4eb7d82ecf05a5a6e78f194722fab165fe4970d1789a0c894ea5a" // Signature
-          + "4217eacbf2022100f3880dffe75bb9366a0bfb7fe75ac803fee0ae8095ec5d97"
-          + "48e48ad153b65b6f"
+          + "3046022100947c47239a4fe51b406e1df077c3fbc3bf9add8d1202e2cf7d3ec1" // Signature
+          + "bdfa41ced80221008ce7f4c529e7396e079456e56e70ec101a3d5bcb9b53e986"
+          + "33abd0055c06180e"
           );
   protected static final String TRANSFER_ACCESS_RESPONSE_A_TO_B_TO_C_TO_D_NO_USER_PRESENCE_BASE64 = 
       Base64.encodeBase64URLSafeString(TRANSFER_ACCESS_RESPONSE_A_TO_B_TO_C_TO_D_NO_USER_PRESENCE);
@@ -579,7 +633,7 @@ public class TestVectors {
           );
   protected static final byte[] TRANSFER_ACCESS_RESPONSE_A_TO_B_EXTRA_BYTES = 
       parseHex("03" // Control Byte
-          + "01"                                                          // TRANSFER_ACCESS_MESSAGE
+          + "01"                                                          // TRANSFER_ACCESS_MESSAGE          
           + "04269889309e47b66749b855dbc03de26b84ea25b62349c1e09d986bea1f5cd0" 
           + "f2f3be6b0f2bf7f54eae97764b378bc2313309b2ace492e2b410d97f2e8979c46d"
           + "4b0be934baebb5d12d26011b69227fa5e86df94e7d94aa2949a89f2d493992ca" 
@@ -605,9 +659,9 @@ public class TestVectors {
           + "746ee0dcb3891b4fffe151a035c2e878f1dc0dea6c51455b5b32bcfa046974d8" // New Key Handle (B)
           + "f820cc9ca846cfd3b4f429d205d71904475fc143da8cfb61eeeeba69b5bf1d7a"
           + "00000000" // Counter Initial Value
-          + "30450220703a9eb8736b60e107dca45182301224058ba8c14f102e4ba603f7b9" // Signature
-          + "69df24e30221008d91264b306dcb3f5a3aeb6eb5f7c5cfb931043d8932cae3a5"
-          + "e4dd62b13d1fc6"
+          + "3046022100fe66adfae4e95773d4deee14fda48cdd12a3343d65c1237166a6e3" // Signature
+          + "f164575f17022100b5a9e6d34e5644817cc5f3478bd5940d66b089e449db57c4"
+          + "e2a14bbfcf593932"
           + "deffaf"                                                               // Extra Bytes
           );
   protected static final byte[] TRANSFER_ACCESS_RESPONSE_A_TO_B_INVALID_SIGNATURE = 
@@ -747,6 +801,9 @@ public class TestVectors {
           + "4217eacbf2022100f3880dffe75bb9366a0bfb7fe75ac803fee0ae8095ec5d97"
           + "48e48ad153b65b6f"
           );
+  protected static final String TRANSFER_ACCESS_RESPONSE_TRANSFER_ACCESS_MESSAGES_1_AND_2_OUT_OF_ORDER_BASE64 =
+      Base64.encodeBase64URLSafeString(
+          TRANSFER_ACCESS_RESPONSE_TRANSFER_ACCESS_MESSAGES_1_AND_2_OUT_OF_ORDER);
 
   protected static final byte[] EXPECTED_REGISTER_SIGNED_BYTES =
       parseHex("00f0e6a6a97042a4f1f1c87f5f7d44315b2d852c2df5c7991cc66241bf7072d1"
@@ -804,18 +861,18 @@ public class TestVectors {
   protected static final byte[] EXPECTED_TRANSFER_ACCESS_RESPONSE_SIGNED_BYTES_A_TO_B = 
       parseHex("03"                                                             // Control Byte
           + "00000000"                                                          // Counter
-          + "ccd6ee2e47baef244d49a222db496bad0ef5b6f93aa7cc4d30c4821b3b9dbc57"  // BROWSER_DATA_SIGN_SHA256
+          + "a29b17a9489f0eb88002659c9629df6d2d1ef94498d028322477bf3ad77bcfca"  // SERVER_CHALLENGE_SIGN
           + "746ee0dcb3891b4fffe151a035c2e878f1dc0dea6c51455b5b32bcfa046974d8"  // New Key Handle(B)
           + "f820cc9ca846cfd3b4f429d205d71904475fc143da8cfb61eeeeba69b5bf1d7a"
-          + "465ce92d2284820726e33bcdee5e52b6b3bd0b647197c9635413a11be4da7e75"  // Sha256 of TRANSFER_ACCESS_MESSAGE_C_TO_D
+          + "465ce92d2284820726e33bcdee5e52b6b3bd0b647197c9635413a11be4da7e75"  // Sha256 of TRANSFER_ACCESS_MESSAGE_A_TO_B
           );
   protected static final byte[] EXPECTED_TRANSFER_ACCESS_RESPONSE_SIGNED_BYTES_A_TO_B_TO_C_TO_D = 
       parseHex("02"                                                             // Control Byte
           + "795245b0"                                                          // Counter
-          + "ccd6ee2e47baef244d49a222db496bad0ef5b6f93aa7cc4d30c4821b3b9dbc57"  // BROWSER_DATA_SIGN_SHA256
+          + "a29b17a9489f0eb88002659c9629df6d2d1ef94498d028322477bf3ad77bcfca"  // SERVER_CHALLENGE_SIGN
           + "9b31362dc861c620da55569e7e493d9858d2cb8ec5fc33b75bf809610aee5523"  // New Key Handle(D)
           + "5a7f496a803099a3c4f7e288cfa74a2b7f0fffcf70bb4396b7abf4841c46303d"
-          + "d11cd6658622ae73c9372690ca0dc7121ff05724237dab1fb6abaa7063420444"  // Sha256 of TRANSFER_ACCESS_MESSAGE_A_TO_B
+          + "5e7885aa14d8aafa5c2e8e97a04471d18b260bca4d26834a43cab5e112bf557f"  // Sha256 of TRANSFER_ACCESS_MESSAGE_C_TO_D
           );
   protected static final byte[] TRANSFER_ACCESS_MESSAGE_SIGNATURE_USING_AUTHENTICATION_KEY_A_TO_B =
       parseHex("30450221008739a7dd67973a270a34081261c9d30048163174fca0e80c14ff72"
@@ -826,22 +883,23 @@ public class TestVectors {
           + "868c0a23022100bb60d474eb4e0e4bcf65d20142ab3c8ce7438779e2b2878ef8"
           + "8bb0acb607172e");
   protected static final byte[] TRANSFER_ACCESS_MESSAGE_SIGNATURE_USING_AUTHENTICATION_KEY_C_TO_D =
-      parseHex("30450221009b5583388e34bd5efb8699bdb6ecaaf8864322ce7f27ec50b526c0"
-          + "453e75cec202205f4f8371fa9a20b884295946c85995115dbbbd00f43f0e64ce"
-          + "41745e039516d0");
+      parseHex("30450221009c26611bd6ccc27d1925c64d9ee9f28483de46e36df47c7a709cf7"
+          + "b3490cde1902202620c2ddf59176f749a5f9566d5928e7dd1ca72166ca78ad6d"
+          + "90c0b1e330ca59");
   protected static final byte[] TRANSFER_ACCESS_MESSAGE_SIGNATURE_USING_ATTESTATION_KEY_C_TO_D = 
-      parseHex("304402206108ca00030d57086ac3f41be47bae5a093f35d8e05403e1f3fa8160"
-          + "c7acff77022019cacc489a5fffe89cc89523c35c6743d75bd28fc9b54f289404"
-          + "65da527e3e49");
+      parseHex("3046022100fa805fe66e7d415c0299c66d2ba8a211c4af102fad1628e66017b8"
+          + "6eabb97c36022100f37f49ad0084cc7b934abd9e1fc327d0964ba351ce4b6dca"
+          + "8e2a6e8c0aa4013b"
+          );
   protected static final byte[] TRANSFER_ACCESS_RESPONSE_SIGNATURE_A_TO_B = 
-      parseHex("30450220703a9eb8736b60e107dca45182301224058ba8c14f102e4ba603f7b9"
-          + "69df24e30221008d91264b306dcb3f5a3aeb6eb5f7c5cfb931043d8932cae3a5"
-          + "e4dd62b13d1fc6"
+      parseHex("3046022100fe66adfae4e95773d4deee14fda48cdd12a3343d65c1237166a6e3"
+          + "f164575f17022100b5a9e6d34e5644817cc5f3478bd5940d66b089e449db57c4"
+          + "e2a14bbfcf593932"
           );
   protected static final byte[] TRANSFER_ACCESS_RESPONSE_SIGNATURE_A_TO_B_TO_C_TO_D =
-      parseHex("3046022100f4eb7d82ecf05a5a6e78f194722fab165fe4970d1789a0c894ea5a"
-          + "4217eacbf2022100f3880dffe75bb9366a0bfb7fe75ac803fee0ae8095ec5d97"
-          + "48e48ad153b65b6f"
+      parseHex("3046022100947c47239a4fe51b406e1df077c3fbc3bf9add8d1202e2cf7d3ec1"
+          + "bdfa41ced80221008ce7f4c529e7396e079456e56e70ec101a3d5bcb9b53e986"
+          + "33abd0055c06180e"
           );
 
   // Test vectors provided by Discretix
