@@ -21,6 +21,7 @@ import java.util.List;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.AdditionalMatchers;
 import org.mockito.Matchers;
 import org.mockito.Mock;
 
@@ -234,6 +235,144 @@ public class U2FServerReferenceImplTest extends TestVectors {
       fail("expected exception, but didn't get it");
     } catch(U2FException e) {
       assertTrue(e.getMessage().contains("is not a recognized home origin"));
+    }
+  }
+  
+  @Test
+  public void testProcessSignResponse_withTransferAccess_noTransports() throws U2FException {
+    when(mockDataStore.getSignSessionData(SESSION_ID)).thenReturn(new SignSessionData(ACCOUNT_NAME,
+        APP_ID_SIGN, SERVER_CHALLENGE_SIGN, TRANSFER_ACCESS_PUBLIC_KEY_A_HEX));
+    u2fServer =
+        new U2FServerReferenceImpl(mockChallengeGenerator, mockDataStore, crypto, TRUSTED_DOMAINS);
+    SignResponse transferAccessResponse = 
+        new SignResponse(KEY_HANDLE_A_BASE64,
+                         TRANSFER_ACCESS_RESPONSE_A_TO_B_BASE64, 
+                         BROWSER_DATA_TRANSFER_ACCESS_BASE64, 
+                         SESSION_ID);
+
+    u2fServer.processSignResponse(transferAccessResponse, ENROLLMENT_TIME);
+    
+    verify(mockDataStore).removeSecurityKey(eq(ACCOUNT_NAME),
+        AdditionalMatchers.aryEq(TRANSFER_ACCESS_PUBLIC_KEY_A_HEX));
+    verify(mockDataStore).addSecurityKeyData(eq(ACCOUNT_NAME),
+        eq(new SecurityKeyData(ENROLLMENT_TIME, 
+                               null, 
+                               KEY_HANDLE_B,
+                               TRANSFER_ACCESS_PUBLIC_KEY_B_HEX, 
+                               VENDOR_CERTIFICATE, 
+                               INITIAL_COUNTER)));
+  }
+  
+  @Test
+  public void testProcessSignResponse_withTransferAccess_noUserPresence() throws U2FException {
+    when(mockDataStore.getSignSessionData(SESSION_ID)).thenReturn(new SignSessionData(ACCOUNT_NAME,
+        APP_ID_SIGN, SERVER_CHALLENGE_SIGN, TRANSFER_ACCESS_PUBLIC_KEY_A_HEX));
+    u2fServer =
+        new U2FServerReferenceImpl(mockChallengeGenerator, mockDataStore, crypto, TRUSTED_DOMAINS);
+    SignResponse transferAccessResponse = 
+        new SignResponse(KEY_HANDLE_A_BASE64,
+                         TRANSFER_ACCESS_RESPONSE_A_TO_B_NO_USER_PRESENCE_BASE64, 
+                         BROWSER_DATA_TRANSFER_ACCESS_BASE64, 
+                         SESSION_ID);
+
+    u2fServer.processSignResponse(transferAccessResponse, ENROLLMENT_TIME);
+    
+    verify(mockDataStore).removeSecurityKey(eq(ACCOUNT_NAME),
+        AdditionalMatchers.aryEq(TRANSFER_ACCESS_PUBLIC_KEY_A_HEX));
+    verify(mockDataStore).addSecurityKeyData(eq(ACCOUNT_NAME),
+        eq(new SecurityKeyData(ENROLLMENT_TIME, 
+                               null, 
+                               KEY_HANDLE_B,
+                               TRANSFER_ACCESS_PUBLIC_KEY_B_HEX, 
+                               VENDOR_CERTIFICATE, 
+                               INITIAL_COUNTER)));
+  }
+
+  @Test
+  public void testProcessSignResponse_withTransferAccess_multipleTransfers()
+      throws U2FException {
+    when(mockDataStore.getSignSessionData(SESSION_ID)).thenReturn(new SignSessionData(ACCOUNT_NAME,
+        APP_ID_SIGN, SERVER_CHALLENGE_SIGN, TRANSFER_ACCESS_PUBLIC_KEY_A_HEX));
+    u2fServer =
+        new U2FServerReferenceImpl(mockChallengeGenerator, mockDataStore, crypto, TRUSTED_DOMAINS);
+    SignResponse transferAccessResponse =
+        new SignResponse(KEY_HANDLE_A_BASE64, 
+                         TRANSFER_ACCESS_RESPONSE_A_TO_B_TO_C_TO_D_NO_USER_PRESENCE_BASE64,
+                         BROWSER_DATA_TRANSFER_ACCESS_BASE64, 
+                         SESSION_ID);
+
+    u2fServer.processSignResponse(transferAccessResponse, ENROLLMENT_TIME);
+    
+    verify(mockDataStore).removeSecurityKey(eq(ACCOUNT_NAME),
+        AdditionalMatchers.aryEq(TRANSFER_ACCESS_PUBLIC_KEY_A_HEX));
+    verify(mockDataStore).addSecurityKeyData(eq(ACCOUNT_NAME),
+        eq(new SecurityKeyData(ENROLLMENT_TIME, 
+                               null, 
+                               KEY_HANDLE_D,
+                               TRANSFER_ACCESS_PUBLIC_KEY_D_HEX, 
+                               VENDOR_CERTIFICATE, 
+                               INITIAL_COUNTER)));
+  }
+      
+  @Test
+  public void testProcessSignResponse_withTransferAccess_badOrigin() throws U2FException {
+    when(mockDataStore.getSignSessionData(SESSION_ID)).thenReturn(new SignSessionData(ACCOUNT_NAME,
+        APP_ID_SIGN, SERVER_CHALLENGE_SIGN, TRANSFER_ACCESS_PUBLIC_KEY_A_HEX));
+    u2fServer = new U2FServerReferenceImpl(mockChallengeGenerator,
+        mockDataStore, crypto, ImmutableSet.of("some-other-domain.com"));
+    SignResponse transferAccessResponse = 
+        new SignResponse(KEY_HANDLE_A_BASE64, 
+                         TRANSFER_ACCESS_RESPONSE_A_TO_B_BASE64, 
+                         BROWSER_DATA_TRANSFER_ACCESS_BASE64, 
+                         SESSION_ID);
+
+    try {
+      u2fServer.processSignResponse(transferAccessResponse, ENROLLMENT_TIME);
+      fail("expected exception, but didn't get it");
+    } catch(U2FException e) {
+      assertTrue(e.getMessage().contains("is not a recognized home origin"));
+    }
+  }  
+
+  @Test
+  public void testProcessSignResponse_withTransferAccess_wrongClientData() throws U2FException {
+    when(mockDataStore.getSignSessionData(SESSION_ID)).thenReturn(new SignSessionData(ACCOUNT_NAME,
+        APP_ID_SIGN, SERVER_CHALLENGE_SIGN, TRANSFER_ACCESS_PUBLIC_KEY_A_HEX));
+    u2fServer =
+        new U2FServerReferenceImpl(mockChallengeGenerator, mockDataStore, crypto, TRUSTED_DOMAINS);
+    SignResponse transferAccessResponse = 
+        new SignResponse(KEY_HANDLE_A_BASE64, 
+                         TRANSFER_ACCESS_RESPONSE_A_TO_B_BASE64, 
+                         BROWSER_DATA_SIGN_BASE64, 
+                         SESSION_ID);
+
+    try {
+      u2fServer.processSignResponse(transferAccessResponse, ENROLLMENT_TIME);
+      fail("expected exception, but didn't get it");
+    } catch(U2FException e) {
+      assertTrue(e.getMessage().contains("bad browserdata: bad type"));
+    }
+  }  
+
+  @Test
+  public void testCheckTransferAccessMessageChain_sequenceNumbersOutOfOrder() throws U2FException {
+    when(mockDataStore.getSignSessionData(SESSION_ID)).thenReturn(new SignSessionData(ACCOUNT_NAME,
+        APP_ID_SIGN, SERVER_CHALLENGE_SIGN, TRANSFER_ACCESS_PUBLIC_KEY_A_HEX));
+    u2fServer =
+        new U2FServerReferenceImpl(mockChallengeGenerator, mockDataStore, crypto, TRUSTED_DOMAINS);
+
+    SignResponse transferAccessResponse = 
+        new SignResponse(KEY_HANDLE_A_BASE64, 
+                         TRANSFER_ACCESS_RESPONSE_TRANSFER_ACCESS_MESSAGES_1_AND_2_OUT_OF_ORDER_BASE64, 
+                         BROWSER_DATA_SIGN_BASE64, 
+                         SESSION_ID);
+    try {
+      u2fServer.processSignResponse(transferAccessResponse, ENROLLMENT_TIME);
+      fail("expected exception, but didn't get it");
+    } catch(U2FException e) {
+      System.out.println(e.getMessage());
+      assertTrue(e.getMessage()
+          .contains("Messages not in order, unexptected sequence number. Expected 2, but got 1"));
     }
   }
 
