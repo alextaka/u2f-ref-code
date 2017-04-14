@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Jasmine Spec Runner v2.5.2</title>
+
+		<link rel="shortcut icon" type="image/png" href="lib/jasmine-2.5.2/jasmine_favicon.png">
+		<link rel="stylesheet" href="lib/jasmine-2.5.2/jasmine.css">
+
+		<script src="lib/jasmine-2.5.2/jasmine.js"></script>
+		<script src="lib/jasmine-2.5.2/jasmine-html.js"></script>
+		<script src="lib/jasmine-2.5.2/boot.js"></script>
+
+		<!-- include source files here... -->
+		<script src="/home/at/u2f-ref-code/u2f-chrome-extension/inherits.js"></script>
+		<script src="/home/at/u2f-ref-code/u2f-chrome-extension/devicestatuscodes.js"></script>
+		<script src="/home/at/u2f-ref-code/u2f-chrome-extension/generichelper.js"></script>
+		<script src="/home/at/research/fido/u2f-ref-code/u2f-chrome-extension/softtokenhelper.js"></script>
+		<script src="/home/at/u2f-ref-code/u2f-chrome-extension/b64.js"></script>
+		<script src="/home/at/u2f-ref-code/u2f-chrome-extension/end-to-end.debug.js"></script>
+		<script src="/home/at/u2f-ref-code/u2f-chrome-extension/sha256.js"></script>
+		<script src="/home/at/u2f-ref-code/u2f-chrome-extension/util.js"></script>
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/appid.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/approvedorigins.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/closeable.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/countdown.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/countdowntimer.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/cryptotokenapprovedorigins.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/delegatinghelper.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/devicefactoryregistry.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/enroller.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/errorcodes.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/etld.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/etld_names_list.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/etldorigincheck.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/externalhelper.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/factoryregistry.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/gnubbies.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/gnubbydevice.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/gnubbyfactory.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/gnubby.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/gnubby-u2f.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/helperwhitelist.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/hidgnubbydevice.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/individualattest.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/logging.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/messagetypes.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/multiplesigner.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/noindividualattest.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/origincheck.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/requesthelper.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/requestqueue.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/signer.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/singlesigner.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/softtokenhelper.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/textfetcher.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/timer.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/u2fbackground.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/u2f-comms.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/usbenrollhandler.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/usbgnubbydevice.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/usbgnubbyfactory.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/usbhelper.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/usbsignhandler.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/watchdog.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/webrequest.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/webrequestsender.js"></script> -->
+		<!-- <script src="/home/at/u2f-ref-code/u2f-chrome-extension/window-timer.js"></script> -->
+
+		<!-- include spec files here... -->
+		<script src="spec/SoftTokenHelperSpec.js"></script>
+
+	</head>
+
+	<body>
+	</body>
+</html>
