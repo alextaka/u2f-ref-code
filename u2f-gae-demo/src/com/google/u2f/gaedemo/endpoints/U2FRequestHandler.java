@@ -199,7 +199,7 @@ public class U2FRequestHandler {
 
     SecurityKeyData securityKeyData;
     try {
-      securityKeyData = u2fServer.processSignResponse(signResponse);
+      securityKeyData = u2fServer.processSignResponse(signResponse, System.currentTimeMillis());
     } catch (U2FException e) {
       throw new ServletException("signature didn't verify", e);
     }
