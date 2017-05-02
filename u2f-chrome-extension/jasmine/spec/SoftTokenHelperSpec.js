@@ -258,15 +258,13 @@ D";
     it("should generate key handle and public key when asked", function() {
     });
 
-    it(
-      "should return an attestation cert and <key handle, pubkey> pair in \
-       response", function() {
-       });
-
-    it(
-      "should create a transfer access message and send it to the other profile",
-      function() {
-      });
+    it("should return an attestation cert and <key handle, pubkey> pair in \
+        response", function() {
+        });
+    
+    it("should create a transfer access message and send it to the other\
+        profile", function() {
+        });
 
     it("should add to a chain if one is passed to it", function() {
     });
@@ -280,19 +278,16 @@ D";
     it("should send an ack", function() {
     });
 
-    it(
-      "should be able to transfer access to multiple accounts on the same \
+    it("should be able to transfer access to multiple accounts on the same \
        domain", function() {
        });
 
-    it(
-      "should be able to transfer access to multiple accounts on different \
+    it("should be able to transfer access to multiple accounts on different \
        domains", function() {
        });
 
     // softokkenhelper to server communication
-    it(
-      "should sign in if the key handle matches a stored credential and a \
+    it("should sign in if the key handle matches a stored credential and a \
        transferAccessMessage is stored with the same key handle", function() {
          exampleTransferAccess.originalKeyHandle = keyHandle;
          softTokenProfile.registrations = [exampleRegistration];
@@ -326,8 +321,7 @@ D";
            .toHaveBeenCalledWith(expectedSoftTokenSignResponseNoMatchingKey);
     });
 
-    it(
-      "should return a transferAccessResponse if a transferAccessMessage is \
+    it("should return a transferAccessResponse if a transferAccessMessage is \
        stored instead of a normal key", function() {
          softTokenProfile.transferAccessChains = [
              exampleTransferAccess, exampleTransferAccessChain
@@ -339,8 +333,8 @@ D";
            .toHaveBeenCalledWith(expectedSoftTokenSignResponseTransferAccess);
        });
 
-    it("should have normal credentials after delivering the transferAccessMessage\
-       to the server successfully", function() {
+    it("should have normal credentials after delivering the\
+        transferAccessMessage to the server successfully", function() {
          softTokenProfile.transferAccessChains = [exampleTransferAccess];
          var softTokenSignResponse = softTokenSignHandlerForTransferAccess
              .run(this.callback);
@@ -348,9 +342,8 @@ D";
          expect(softTokenProfile.registrations).toEqual(expectedRegistration);
     });
 
-    it(
-      "should send WRONG_DATA_STATUS if one of the key handles to be enrolled is\
-       in a transferAccessMessage", function() {
+    it("should send WRONG_DATA_STATUS if one of the key handles to be enrolled\
+       is in a transferAccessMessage", function() {
          softTokenProfile.transferAccessChains = [
            exampleTransferAccess, exampleTransferAccessChain
          ];
