@@ -98,13 +98,13 @@ describe("Spec testing", function() {
     exampleTransferAccessChain = {
       registration: exampleRegistration,
       originalKeyHandle: originalKeyHandle,
-      transferAccessChain: "Example TransferAccessMessageChain"
+      transferAccessMessageChain: "Example TransferAccessMessageChain"
     };
 
     exampleTransferAccessChain2 = {
       registration: exampleNewRegistration,
       originalKeyHandle: keyHandle,
-      transferAccessChain: "Example TransferAccessMessageChain"
+      transferAccessMessageChain: "Example TransferAccessMessageChain"
     };
 
     expectedSoftTokenSignResponseNoMatchingKey = {
