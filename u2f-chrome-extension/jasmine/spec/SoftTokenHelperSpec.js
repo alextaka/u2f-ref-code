@@ -7,8 +7,8 @@ describe("Spec testing", function() {
   var enrollHelperRequest, signHelperRequest;
   var expectedEnrollResponseAlreadyMatchingKeyHandle;
   var originalKeyHandle, newKeyHandle, newPubKey, newSecKey;
-  var exampleValidTransferAccessMessage, exampleChainedTransferAccessMessage;
-  var exampleRegistration, exampleTransferAccess, exampleTransferAccessChain;
+  var exampleRegistration, exampleNewRegistration;
+  var exampleTransferAccessChain, exampleTransferAccessChain2;
   var expectedSoftTokenSignResponseNoMatchingKey;
   var expectedSoftTokenSignResponseMatchingKey;
 
@@ -85,55 +85,26 @@ describe("Spec testing", function() {
       counter: 1
     };
 
-    exampleValidTransferAccessMessage = {
-      sequenceNumber: 1,
-      newPubKey: pubKey,
+    exampleNewRegistration = {
       appIdHash: appIdHash,
-      signatureUsingOldPrivateKey: jasmine.any(String),
-      signatureUsingOldAttestationKey: jasmine.any(String)
-    };
-
-    exampleChainedTransferAccessMessage = {
-      sequenceNumber: 2,
-      newPubKey: newPubKey,
-      appIdHash: appIdHash,
-      signatureUsingOldPrivateKey: jasmine.any(String),
-      signatureUsingOldAttestationKey: jasmine.any(String)
-    };
-
-    exampleTransferAccess = {
-      type: "transfer_access_helper_reply",
-      code: DeviceStatusCodes.OK_STATUS,
-      responseData: {
-        version: version,
-        transferAccessMessages: [exampleValidTransferAccessMessage],
-        appIdHash: appIdHash,
-        originalKeyHandle: originalKeyHandle,
-        keyHandle: keyHandle,
-        keys: {
-          sec: secKey,
-          pub: pubKey
-        }
-      }
+      keyHandle: newKeyHandle,
+      keys: {
+        sec: newSecKey,
+        pub: newPubKey
+      },
+      counter: 1
     };
 
     exampleTransferAccessChain = {
-      type: "transfer_access_helper_reply",
-      code: DeviceStatusCodes.OK_STATUS,
-      responseData: {
-        version: version,
-        transferAccessMessages: [
-          exampleValidTransferAccessMessage,
-          exampleChainedTransferAccessMessage
-        ],
-        appIdHash: appIdHash,
-        originalKeyHandle: originalKeyHandle,
-        keyHandle: newKeyHandle,
-        keys: {
-          sec: newSecKey,
-          pub: newPubKey
-        }
-      }
+      registration: exampleRegistration,
+      originalKeyHandle: originalKeyHandle,
+      transferAccessChain: "Example TransferAccessMessageChain"
+    };
+
+    exampleTransferAccessChain2 = {
+      registration: exampleNewRegistration,
+      originalKeyHandle: keyHandle,
+      transferAccessChain: "Example TransferAccessMessageChain"
     };
 
     expectedSoftTokenSignResponseNoMatchingKey = {
@@ -225,7 +196,6 @@ describe("Spec testing", function() {
     var signHelperRequestForTransferAccess;
     var softTokenSignHandlerForTransferAccess;
     var expectedSoftTokenSignResponseTransferAccess;
-    var expectedRegistration;
 
     beforeEach(function() {
       signHelperRequestForTransferAccess = {
@@ -245,17 +215,16 @@ describe("Spec testing", function() {
         new SoftTokenSignHandler(softTokenProfile,
                                  signHelperRequestForTransferAccess);
 
-      expectedSoftTokenSignResponseTransferAccess =
-        exampleValidTransferAccessMessage;
-
-      expectedRegistration = {
-        appIdHash: appIdHash,
-        keyHandle: keyHandle,
-        keys: {
-          sec: jasmine.any(String),
-          pub: pubKey
-        },
-        counter: 1
+      expectedSoftTokenSignResponseTransferAccess = {
+        type: "transfer_access_helper_reply",
+        code: DeviceStatusCodes.OK_STATUS,
+        responseData: {
+          version: version,
+          appIdHash: appIdHash,
+          challengeHash: challengeHash,
+          keyHandle: keyHandle,
+          signatureData: jasmine.any(String)
+        }
       };
     });
 
@@ -294,9 +263,9 @@ describe("Spec testing", function() {
     // softokkenhelper to server communication
     it("should sign in if the key handle matches a stored credential and a \
        transferAccessMessage is stored with the same key handle", function() {
-         exampleTransferAccess.originalKeyHandle = keyHandle;
+         exampleTransferAccessChain.originalKeyHandle = keyHandle;
          softTokenProfile.registrations = [exampleRegistration];
-         softTokenProfile.transferAccessChains = [exampleTransferAccess];
+         softTokenProfile.transferAccessChains = [exampleTransferAccessChain];
          expect(softTokenProfile.transferAccessChains[0].originalKeyHandle)
            .toEqual(keyHandle);
          expect(softTokenProfile.registrations[0].keyHandle)
@@ -310,7 +279,7 @@ describe("Spec testing", function() {
     it("should sign in if the key handle matches a stored credential and\
         transferAccessMessages exist", function() {
           softTokenProfile.registrations = [exampleRegistration];
-          softTokenProfile.transferAccessChains = [exampleTransferAccess];
+          softTokenProfile.transferAccessChains = [exampleTransferAccessChain];
           var softTokenSignResponse = softTokenSignHandler.run(this.callback);
           expect(softTokenSignResponse).toBe(true);
           expect(this.callback)
@@ -319,7 +288,7 @@ describe("Spec testing", function() {
 
     it("should fail if no matching key or transferAccessMessage exists ",
        function() {
-         softTokenProfile.transferAccessChains = [exampleTransferAccess];
+         softTokenProfile.transferAccessChains = [exampleTransferAccessChain];
          var softTokenSignResponse = softTokenSignHandler.run(this.callback);
          expect(softTokenSignResponse).toBe(true);
          expect(this.callback)
@@ -329,7 +298,7 @@ describe("Spec testing", function() {
     it("should return a transferAccessResponse if a transferAccessMessage is \
        stored instead of a normal key", function() {
          softTokenProfile.transferAccessChains = [
-             exampleTransferAccess, exampleTransferAccessChain
+           exampleTransferAccessChain, exampleTransferAccessChain2
          ];
          var softTokenSignResponse = softTokenSignHandlerForTransferAccess
            .run(this.callback);
@@ -340,17 +309,17 @@ describe("Spec testing", function() {
 
     it("should have normal credentials after delivering the\
         transferAccessMessage to the server successfully", function() {
-         softTokenProfile.transferAccessChains = [exampleTransferAccess];
+         softTokenProfile.transferAccessChains = [exampleTransferAccessChain];
          var softTokenSignResponse = softTokenSignHandlerForTransferAccess
              .run(this.callback);
          expect(softTokenProfile.transferAccessChains).toEqual([]);
-         expect(softTokenProfile.registrations).toEqual(expectedRegistration);
+         expect(softTokenProfile.registrations).toEqual(exampleRegistration);
     });
 
     it("should send WRONG_DATA_STATUS if one of the key handles to be enrolled\
        is in a transferAccessMessage", function() {
          softTokenProfile.transferAccessChains = [
-           exampleTransferAccess, exampleTransferAccessChain
+           exampleTransferAccessChain, exampleTransferAccessChain2
          ];
          var softTokenEnrollResponse = softTokenEnrollHandler.run(this.callback);
          expect(softTokenEnrollResponse).toBe(true);
