@@ -232,13 +232,13 @@ describe("Spec testing", function() {
     it("should generate key handle and public key when asked", function() {
     });
 
-    it("should return an attestation cert and <key handle, pubkey> pair in \
-        response", function() {
-        });
+    it("should return an attestation cert and <key handle, pubkey> pair in " + 
+       "response", function() {
+       });
     
-    it("should create a transfer access message and send it to the other\
-        profile", function() {
-        });
+    it("should create a transfer access message and send it to the other " +
+       "profile", function() {
+       });
 
     it("should add to a chain if one is passed to it", function() {
     });
@@ -252,17 +252,17 @@ describe("Spec testing", function() {
     it("should send an ack", function() {
     });
 
-    it("should be able to transfer access to multiple accounts on the same \
-       domain", function() {
+    it("should be able to transfer access to multiple accounts on the same " +
+       "domain", function() {
        });
 
-    it("should be able to transfer access to multiple accounts on different \
-       domains", function() {
+    it("should be able to transfer access to multiple accounts on different " +
+       "domains", function() {
        });
 
     // softokkenhelper to server communication
-    it("should sign in if the key handle matches a stored credential and a \
-       transferAccessMessage is stored with the same key handle", function() {
+    it("should sign in if the key handle matches a stored credential and a " +
+       "transferAccessMessage is stored with the same key handle", function() {
          exampleTransferAccessChain.originalKeyHandle = keyHandle;
          softTokenProfile.registrations = [exampleRegistration];
          softTokenProfile.transferAccessChains = [exampleTransferAccessChain];
@@ -276,17 +276,17 @@ describe("Spec testing", function() {
            .toHaveBeenCalledWith(expectedSoftTokenSignResponseMatchingKey);
        });
 
-    it("should sign in if the key handle matches a stored credential and\
-        transferAccessMessages exist", function() {
-          softTokenProfile.registrations = [exampleRegistration];
-          softTokenProfile.transferAccessChains = [exampleTransferAccessChain];
-          var softTokenSignResponse = softTokenSignHandler.run(this.callback);
-          expect(softTokenSignResponse).toBe(true);
-          expect(this.callback)
-            .toHaveBeenCalledWith(expectedSoftTokenSignResponseMatchingKey);
-    });
+    it("should sign in if the key handle matches a stored credential and " +
+       "transferAccessMessages exist", function() {
+         softTokenProfile.registrations = [exampleRegistration];
+         softTokenProfile.transferAccessChains = [exampleTransferAccessChain];
+         var softTokenSignResponse = softTokenSignHandler.run(this.callback);
+         expect(softTokenSignResponse).toBe(true);
+         expect(this.callback)
+           .toHaveBeenCalledWith(expectedSoftTokenSignResponseMatchingKey);
+       });
 
-    it("should fail if no matching key or transferAccessMessage exists ",
+    it("should fail if no matching key or transferAccessMessage exists",
        function() {
          softTokenProfile.transferAccessChains = [exampleTransferAccessChain];
          var softTokenSignResponse = softTokenSignHandler.run(this.callback);
@@ -295,29 +295,29 @@ describe("Spec testing", function() {
            .toHaveBeenCalledWith(expectedSoftTokenSignResponseNoMatchingKey);
     });
 
-    it("should return a transferAccessResponse if a transferAccessMessage is \
-       stored instead of a normal key", function() {
+    it("should return a transferAccessResponse if a transferAccessMessage is " +
+       "stored instead of a normal key", function() {
          softTokenProfile.transferAccessChains = [
            exampleTransferAccessChain, exampleTransferAccessChain2
          ];
          var softTokenSignResponse = softTokenSignHandlerForTransferAccess
-           .run(this.callback);
+             .run(this.callback);
          expect(softTokenSignResponse).toBe(true);
          expect(this.callback)
            .toHaveBeenCalledWith(expectedSoftTokenSignResponseTransferAccess);
        });
 
-    it("should have normal credentials after delivering the\
-        transferAccessMessage to the server successfully", function() {
+    it("should have normal credentials after delivering the " +
+       "transferAccessMessage to the server successfully", function() {
          softTokenProfile.transferAccessChains = [exampleTransferAccessChain];
          var softTokenSignResponse = softTokenSignHandlerForTransferAccess
              .run(this.callback);
          expect(softTokenProfile.transferAccessChains).toEqual([]);
          expect(softTokenProfile.registrations).toEqual(exampleRegistration);
-    });
+       });
 
-    it("should send WRONG_DATA_STATUS if one of the key handles to be enrolled\
-       is in a transferAccessMessage", function() {
+    it("should send WRONG_DATA_STATUS if one of the key handles to be " +
+       "enrolled is in a transferAccessMessage", function() {
          softTokenProfile.transferAccessChains = [
            exampleTransferAccessChain, exampleTransferAccessChain2
          ];
