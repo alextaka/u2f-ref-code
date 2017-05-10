@@ -44,6 +44,13 @@ var SoftTokenKeyPair;
  */
 var SoftTokenRegistration;
 
+/** @typedef {{
+ *     registration: !SoftTokenRegistration
+ *     originalKeyHandle: string,
+ *     transferAccessMessageChain: string
+ * }}
+ */
+var SoftTokenTransferAccessChain;
 
 /**
  * A key pair for testing. When non-null, will be used instead of generating
@@ -75,6 +82,14 @@ function SoftTokenProfile() {
    * @type {!Array<!SoftTokenRegistration>}
    */
   this.registrations = [];
+  /**
+   * TransferAccessChains (appId/keyHandle pairs) sent to this device.
+   * Registration is as above.
+   * originalKeyHandle is base64-urlsafe.
+   * transferAccessMessageChain is hex encoded.
+   * @type {!Array<!SoftTokenTransferAccessChain>}
+   */
+  this.transferAccessChains = [];
 }
 
 
@@ -125,6 +140,126 @@ SoftTokenProfile.prototype.createRegistration = function(appIdHash, keypair) {
 
 
 /**
+ * Initializes a new transferAccessChain and stores in the profile.
+ * @param {SoftTokenRegistration} registration
+ * @param {string} originalKeyHandle
+ * @param {string} transferAccessMessageChain
+ * @return {!SoftTokenTransferAccessChain}
+ */
+SoftTokenProfile.prototype.createTransferAccessChain =
+  function(registration, originalKeyHandle, transferAccessMessageChain) {
+    let softTokenTransferAccessChain;
+    softTokenTransferAccessChain = {
+      registration: registration,
+      originalKeyHandle: originalKeyHandle,
+      transferAccessMessageChain: transferAccessMessageChain
+    };
+
+    this.transferAccessChains.push(softTokenTransferAccessChain);
+    return softTokenTransferAccessChain;
+};
+
+
+/**
+ * Builds a single transferAccessMessage
+ * @param {integer} sequenceNumber
+ * @param {string} newPublicKey in base64-urlsafe
+ * @param {SoftTokenRegistration} registration
+ * @param {string} newAttestationCert
+ * @return {Uint8Array} 
+ */
+SoftTokenProfile.prototype.buildTransferAccessMessage =
+  function(sequenceNumber, newPublicKey, registration, newAttestationCert) {
+    const sequenceNumberLength = 1;
+    const newPublicKeyBytes = UTIL_HexToBytes(newPublicKey);
+    const appIdBytes = new Uint8Array(B64_decode(registration.appIdHash));
+    const newAttestationCertBytes = UTIL_HexToBytes(newAttestationCert);
+
+    const lengthOfSignBufferForSignatureUsingPrivateKey =
+          sequenceNumberLength +
+          newPublicKeyBytes.length +
+          appIdBytes.length +
+          newAttestationCertBytes.length;
+    let signBufferForSignatureUsingPrivateKey =
+        new Uint8Array(lengthOfSignBufferForSignatureUsingPrivateKey);
+
+    const indexOfSequenceNumber = 0;
+    signBufferForSignatureUsingPrivateKey[indexOfSequenceNumber] =
+      0xFF & sequenceNumber;
+
+    const indexOfNewPublicKey = indexOfSequenceNumber + sequenceNumberLength;
+    signBufferForSignatureUsingPrivateKey
+      .set(newPublicKeyBytes, indexOfNewPublicKey);
+
+    const indexOfAppIdHash = indexOfNewPublicKey + newPublicKeyBytes.length;
+    signBufferForSignatureUsingPrivateKey.set(appIdBytes, indexOfAppIdHash);
+
+    const indexOfAttestationCert = indexOfAppIdHash + appIdBytes.length;
+    signBufferForSignatureUsingPrivateKey
+      .set(newAttestationCertBytes, indexOfAttestationCert);
+
+    // Create Signature Using Old Private Key
+    const ecdsaOldPrivateKey = generateKey(UTIL_HexToArray(registration.keys.sec));
+    const signatureUsingOldPrivateKey = UTIL_JsonSignatureToAsn1(
+      ecdsaOldPrivateKey.sign(signBufferForSignatureUsingPrivateKey));
+
+    // Create Signature Using Attestation Private Key
+    const lengthOfSignBufferForSignatureUsingAttestationKey =
+          signBufferForSignatureUsingPrivateKey.length +
+          signatureUsingOldPrivateKey.length;
+    let signBufferForSignatureUsingAttestationKey =
+        new Uint8Array(lengthOfSignBufferForSignatureUsingAttestationKey);
+
+    signBufferForSignatureUsingAttestationKey
+      .set(signBufferForSignatureUsingPrivateKey, 0);
+    signBufferForSignatureUsingAttestationKey
+      .set(signatureUsingOldPrivateKey,
+           signBufferForSignatureUsingPrivateKey.length);
+
+    const ecdsaOldAttestationKey =
+          generateKey(UTIL_HexToArray(this.profile_.attestationKey));
+    const signatureUsingOldAttestationKey = UTIL_JsonSignatureToAsn1(
+      ecdsa.sign(signBufferForSignatureUsingAttestationKey));
+
+    // Build TransferAccessMessage
+    const lengthOfSignatureField = 1;
+    const lengthOfTransferAccessMessageData =
+          signBufferForSignatureUsingAttestationKey.length +
+          signatureUsingOldAttestationKey.length +
+          2 * lengthOfSignatureField;
+    let transferAccessMessageData =
+        new Uint8Array(lengthOfTransferAccessMessageData);
+
+    transferAccessMessageData.set(signBufferForSignatureUsingPrivateKey, 0);
+
+    const indexOfLengthFieldForSignatureUsingOldPrivateKey =
+          signBufferForSignatureUsingPrivateKey.length;
+    transferAccessMessageData[indexOfLengthFieldForSignatureUsingOldPrivateKey] =
+      0xFF & signatureUsingOldPrivateKey.length;
+
+    const indexOfSignatureUsingOldPrivateKey =
+          indexOfLengthFieldForSignatureUsingOldPrivateKey +
+          lengthOfSignatureField;
+    transferAccessMessageData.set(signatureUsingOldPrivateKey,
+                                  indexOfSignatureUsingOldPrivateKey);
+
+    const indexOfLengthFieldForSignatureUsingOldAttestationKey =
+          indexOfSignatureUsingOldPrivateKey +
+          signatureUsingOldPrivateKey.length;
+    transferAccessMessageData[indexOfLengthFieldForSignatureUsingOldAttestationKey] = 
+      0xFF & signatureUsingOldAttestationKey.length;
+
+    const indexOfSignatureUsingOldAttestationKey =
+          indexOfLengthFieldForSignatureUsingOldAttestationKey +
+          lengthOfSignatureField;
+    transferAccessMessageData
+      .set(signatureUsingOldAttestationKey,
+           indexOfSignatureUsingOldAttestationKey);
+    
+    return transferAccessMessageData;
+  };
+
+/**
  * Looks up an existing registration by appId and keyHandle.
  * Returns null if not found.
  * @param {string} appIdHash in base64-urlsafe
@@ -141,6 +276,50 @@ SoftTokenProfile.prototype.getRegistration = function(appIdHash, keyHandle) {
   return null;
 };
 
+
+/**
+ * Looks up an existing transferAccessChain by appId and keyHandle and
+ * pops it out of the transferAccessChains array;
+ * Returns null if not found.
+ * @param {string} appIdHash in base64-urlsafe
+ * @param {string} keyHandle in base64-urlsafe
+ * @return {?SoftTokenTransferAccessChain}
+ */
+SoftTokenProfile.prototype.getAndPopTransferAccessChain =
+  function(appIdHash, keyHandle) {
+    let chain = null;
+    for (let i = 0; i < this.transferAccessChains.length; ++i) {
+      chain = this.transferAccessChains[i];
+      if (chain.registration.appIdHash === appIdHash &&
+          chain.originalKeyHandle === keyHandle) {
+        this.transferAccessChains.splice(i, 1);
+        return chain;
+      }
+    }
+    return null;
+  };
+
+
+/**
+ * Looks up an existing transferAccessChain by appId and keyHandle
+ * @param {string} appIdHash in base64-urlsafe
+ * @param {string} keyHandle in base64-urlsafe
+ * @return {boolean}
+ */
+SoftTokenProfile.prototype.hasMatchingTransferAccessChain =
+  function(appIdHash, keyHandle) {
+    let chain = null;
+    for (let i = 0; i < this.transferAccessChains.length; ++i) {
+      chain = this.transferAccessChains[i];
+      if (chain.registration.appIdHash === appIdHash &&
+          (chain.originalKeyHandle === keyHandle ||
+           chain.registration.keyHandle === keyHandle)) {
+        this.transferAccessChains.splice(i, 1);
+        return true;
+      }
+    }
+    return false;
+  };
 
 
 /**
@@ -170,6 +349,21 @@ SoftTokenEnrollHandler.prototype.run = function(cb) {
     if (sd.version != 'U2F_V2')
       continue;
     if (this.profile_.getRegistration(sd.appIdHash, sd.keyHandle)) {
+      cb({
+        'type': 'enroll_helper_reply',
+        'code': DeviceStatusCodes.WRONG_DATA_STATUS
+      });
+      return true;
+    }
+  }
+
+  // See if one of the keyhandles is in a transferAccessMessage
+  for (i = 0; i < this.request_.signData.length; ++i) {
+    let sd = this.request_.signData[i];
+    if (sd.version != 'U2F_V2')
+      continue;
+    if (this.profile_
+        .hasMatchingTransferAccessChain(sd.appIdHash, sd.keyHandle)) {
       cb({
         'type': 'enroll_helper_reply',
         'code': DeviceStatusCodes.WRONG_DATA_STATUS
@@ -285,6 +479,7 @@ SoftTokenSignHandler.prototype.run = function(cb) {
 
   // See if we know any of the keyHandles
   var registration, signData = null;
+  let keyHandleMatchesStoredRegistration = false;
   for (i = 0; i < this.request_.signData.length; ++i) {
     var sd = this.request_.signData[i];
     if (sd.version != 'U2F_V2')
@@ -292,6 +487,23 @@ SoftTokenSignHandler.prototype.run = function(cb) {
     registration = this.profile_.getRegistration(sd.appIdHash, sd.keyHandle);
     if (registration) {
       signData = sd;
+      keyHandleMatchesStoredRegistration = true;
+      break;
+    }
+  }
+
+  // See if any of the keyHandles refer to transferAccessMessages
+  let transferAccessChain = null;
+  let isTransferAccess = false;
+  for (i = 0; i< this.request_.signData.length; ++i) {
+    let sd = this.request_.signData[i];
+    if (sd.version != 'U2F_V2')
+      continue;
+    transferAccessChain =
+      this.profile_.getAndPopTransferAccessChain(sd.appIdHash, sd.keyHandle);
+    if (transferAccessChain && !keyHandleMatchesStoredRegistration) {
+      signData = sd;
+      isTransferAccess = true;
       break;
     }
   }
@@ -302,6 +514,10 @@ SoftTokenSignHandler.prototype.run = function(cb) {
       'code': DeviceStatusCodes.WRONG_DATA_STATUS
     });
     return true;
+  }
+
+  if (isTransferAccess === true) {
+    return this.runTransferAccess(cb, transferAccessChain, signData.challengeHash);
   }
 
   // Increment the counter
@@ -330,7 +546,8 @@ SoftTokenSignHandler.prototype.run = function(cb) {
   signatureData.set(signBuffer.subarray(32, 37), 0);
   signatureData.set(signature, 5);
 
-  cb({
+  let signHelperReply;
+  signHelperReply = {
     'type': 'sign_helper_reply',
     'code': DeviceStatusCodes.OK_STATUS,
     'responseData': {
@@ -340,7 +557,149 @@ SoftTokenSignHandler.prototype.run = function(cb) {
       'keyHandle': registration.keyHandle,
       'signatureData': B64_encode(signatureData)
     }
-  });
+  };
+
+  cb(signHelperReply);
+  return true;
+};
+
+/**
+ * @param {RequestHandlerCallback} cb Called with the result of the request
+ * @param {!SoftTokenTransferAccessChain} transferAccessChain
+ * @param {string} challengeHash in base64-urlsafe
+ * @return {boolean} Whether this handler could be run.
+ */
+SoftTokenSignHandler.prototype.runTransferAccess =
+  function(cb, transferAccessChain, challengeHash) {
+    const controlByteLength = 1;
+    const keyHandleLengthFieldLength = 1;
+    const counterLength = 4;
+    const challengeBytes = new Uint8Array(B64_decode(challengeHash));
+    const keyHandleBytes =
+          new Uint8Array(B64_decode(transferAccessChain.registration.keyHandle));
+    const transferAccessMessageChain =
+          transferAccessChain.transferAccessMessageChain;
+    const transferAccessMessageChainHash =
+          new SHA256().digest(transferAccessMessageChain);
+    const lengthOfSignBufferTransferAccessResponse = controlByteLength +
+          counterLength +
+          challengeBytes.length +
+          keyHandleBytes.length +
+          transferAccessMessageChainHash.length;
+    
+    let signBufferTransferAccessResponse =
+        new Uint8Array(lengthOfSignBufferTransferAccessResponse);
+
+    const controlByte = 0x03;
+
+    const indexOfControlByte = 0;
+    signBufferTransferAccessResponse[indexOfControlByte] = controlByte;
+
+    // Sadly, JS TypedArrays are whatever-endian the platform is,
+    // so Uint32Array is not at all useful here (or anywhere?),
+    // and we must manually pack the counter (big endian as per spec).
+    const indexOfCounter = indexOfControlByte + controlByteLength;
+    signBufferTransferAccessResponse[indexOfCounter] =
+      0xFF & transferAccessChain.registration.counter >>> 24;
+    signBufferTransferAccessResponse[indexOfCounter + 1] =
+      0xFF & transferAccessChain.registration.counter >>> 16;
+    signBufferTransferAccessResponse[indexOfCounter + 2] =
+      0xFF & transferAccessChain.registration.counter >>> 8;
+    signBufferTransferAccessResponse[indexOfCounter + 3] =
+      0xFF & transferAccessChain.registration.counter;
+
+    const indexOfChallenge = indexOfCounter + counterLength;
+    signBufferTransferAccessResponse.set(challengeBytes, indexOfChallenge);
+
+    const indexOfKeyHandle = indexOfChallenge + challengeBytes.length;
+    signBufferTransferAccessResponse
+      .set(keyHandleBytes, indexOfKeyHandle);
+
+    const indexOfTransferAccessMessageChainHash = indexOfKeyHandle +
+          keyHandleBytes.length;
+    signBufferTransferAccessResponse
+      .set(transferAccessMessageChainHash,
+           indexOfTransferAccessMessageChainHash);
+
+    // E2E SHA-256 requires a regular Array<number>
+    const signBufferArrayTransferAccessResponse =
+          Array.prototype.slice.call(signBufferTransferAccessResponse);
+
+    const ecdsaAttestationKey =
+          generateKey(UTIL_HexToArray(this.profile_.attestationKey));
+    const signatureTransferAccessResponse =
+          UTIL_JsonSignatureToAsn1(
+            ecdsaAttestationKey.sign(signBufferArrayTransferAccessResponse));
+
+    const lengthOfTransferAccessResponse = controlByteLength +
+          transferAccessMessageChain.length +
+          keyHandleLengthFieldLength +
+          keyHandleBytes.length +
+          counterLength +
+          signatureTransferAccessResponse.length;
+
+    let transferAccessResponse =
+        new Uint8Array(lengthOfTransferAccessResponse);
+
+    // Build TransferAccessResponse
+    const indexOfControlByteTransferAccessResponse = 0;
+    transferAccessResponse[indexOfControlByteTransferAccessResponse] =
+      controlByte;
+
+    const indexOfTransferAccessMessageChainTransferAccessResponse =
+          indexOfControlByteTransferAccessResponse +
+          controlByteLength;
+    transferAccessResponse
+      .set(transferAccessMessageChain,
+           indexOfTransferAccessMessageChainTransferAccessResponse);
+
+    const indexOfLengthOfKeyHandleTransferAccessResponse =
+          indexOfTransferAccessMessageChainTransferAccessResponse +
+          transferAccessMessageChain.length;
+    transferAccessResponse[indexOfLengthOfKeyHandleTransferAccessResponse] =
+      0xFF & keyHandleBytes.length;
+
+    const indexOfKeyHandleTransferAccessResponse =
+          indexOfLengthOfKeyHandleTransferAccessResponse +
+          keyHandleLengthFieldLength;
+    transferAccessResponse
+      .set(keyHandleBytes, indexOfKeyHandleTransferAccessResponse);
+
+    // Sadly, JS TypedArrays are whatever-endian the platform is,
+    // so Uint32Array is not at all useful here (or anywhere?),
+    // and we must manually pack the counter (big endian as per spec).
+    const indexOfCounterTransferAccessResponse =
+          indexOfKeyHandleTransferAccessResponse + keyHandleBytes.length;
+    transferAccessResponse[indexOfCounterTransferAccessResponse] =
+      transferAccessResponse[indexOfCounterTransferAccessResponse] =
+      0xFF & transferAccessChain.registration.counter >>> 24;
+    transferAccessResponse[indexOfCounterTransferAccessResponse + 1] =
+      0xFF & transferAccessChain.registration.counter >>> 16;
+    transferAccessResponse[indexOfCounterTransferAccessResponse + 2] =
+      0xFF & transferAccessChain.registration.counter >>> 8;
+    transferAccessResponse[indexOfCounterTransferAccessResponse + 3] =
+      0xFF & transferAccessChain.registration.counter;
+
+    const indexOfSignatureTransferAccessResponse =
+          indexOfCounterTransferAccessResponse + counterLength;
+    transferAccessResponse
+      .set(signatureTransferAccessResponse,
+           indexOfSignatureTransferAccessResponse);
+
+    let signHelperReply;
+    signHelperReply = {
+      'type': 'transfer_access_helper_reply',
+      'code': DeviceStatusCodes.OK_STATUS,
+      'responseData': {
+        'version': 'U2F_V2',
+        'appIdHash': transferAccessChain.registration.appIdHash,
+        'challengeHash': challengeHash,
+        'keyHandle': transferAccessChain.registration.keyHandle,
+        'signatureData': B64_encode(transferAccessResponse)
+      }
+    };
+
+  cb(signHelperReply);
   return true;
 };
 

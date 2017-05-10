@@ -190,7 +190,7 @@ var enroll_helper_reply = {
 };
 
 var sign_helper_reply = {
-  "type": "sign_helper_reply",
+  "type": "sign_helper_reply" || "transfer_access_helper_reply",
   "code": result,  // from DeviceStatusCodes
   "errorDetail": undefined || string,
   "responseData": undefined || {
