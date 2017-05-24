@@ -3,9 +3,16 @@ describe("Spec testing", function() {
   let appIdHash, keyHandle, challengeHash, version, timeoutSeconds;
   let enrollChallenges, signData;
   let softTokenProfile, softTokenHelper;
-  let softTokenSignHandler, softTokenEnrollHandler;
+  let softTokenSignHandler, softTokenEnrollHandler,
+      softTokenTransferAccessHandler;
   let enrollHelperRequest, signHelperRequest;
+  let transferAccessClientMessage,
+      transferAccessClientMessage1,
+      transferAccessClientMessage2,
+      transferAccessClientMessage3,
+      transferAccessClientMessage4;
   let expectedEnrollResponseAlreadyMatchingKeyHandle;
+  let expectedTransferAccessWrongDataStatus;
   let originalKeyHandle, newKeyHandle, newPubKey, newSecKey;
   let exampleRegistration, exampleNewRegistration;
   let exampleTransferAccessChain, exampleTransferAccessChain2;
@@ -65,13 +72,76 @@ describe("Spec testing", function() {
       signData: signData
     };
 
+    transferAccessClientMessage1 = {
+      type: "transfer_access_client_message",
+      code: DeviceStatusCodes.OK_STATUS,
+      messageNumber: 1,
+      transfers: [
+        {
+          version: version,
+          appIdHash: appIdHash,
+          keyHandle: keyHandle
+        }
+      ]
+    };
+
+    transferAccessClientMessage2 = {
+      type: "transfer_access_client_message",
+      code: DeviceStatusCodes.OK_STATUS,
+      messageNumber: 2,
+      attestationCert: softTokenProfile.attestationCert,
+      newPubKeys: [
+        {
+          appIdHash: appIdHash,
+          keyHandle: keyHandle,
+          pubKey: newPubKey
+        }
+      ]
+    };
+
+    transferAccessClientMessage3 = {
+      type: "transfer_access_client_message",
+      code: DeviceStatusCodes.OK_STATUS,
+      messageNumber: 3,
+      transferAccessChains: [
+        {
+          appIdHash: appIdHash,
+          keyHandle: keyHandle,
+          originalKeyHandle: originalKeyHandle,
+          transferAccessMessageChain: "transferAccessChain"
+        }
+      ]
+    };
+
+    transferAccessClientMessage4 = {
+      type: "transfer_access_client_message",
+      code: DeviceStatusCodes.OK_STATUS,
+      messageNumber: 4,
+      acks: [
+        {
+          appIdHash: appIdHash,
+          keyHandle: keyHandle
+        }
+      ]
+    };
+
+    transferAccessClientMessage = transferAccessClientMessage4;
+    
     softTokenSignHandler =
       new SoftTokenSignHandler(softTokenProfile, signHelperRequest);
     softTokenEnrollHandler =
       new SoftTokenEnrollHandler(softTokenProfile, enrollHelperRequest);
+    softTokenTransferAccessHandler =
+      new SoftTokenTransferAccessHandler(softTokenProfile,
+                                         transferAccessClientMessage);
 
     expectedEnrollResponseAlreadyMatchingKeyHandle = {
       type: 'enroll_helper_reply',
+      code: DeviceStatusCodes.WRONG_DATA_STATUS
+    };
+
+    expectedTransferAccessWrongDataStatus = {
+      type: "transfer_access_client_message",
       code: DeviceStatusCodes.WRONG_DATA_STATUS
     };
 
@@ -196,6 +266,9 @@ describe("Spec testing", function() {
     let signHelperRequestForTransferAccess;
     let softTokenSignHandlerForTransferAccess;
     let expectedSoftTokenSignResponseTransferAccess;
+    let expectedTransferAccessClientMessage3NoMatchingKeys,
+        expectedTransferAccessClientMessage3NoExistingChain,
+        expectedTransferAccessClientMessage3ExistingChain;
 
     beforeEach(function() {
       signHelperRequestForTransferAccess = {
@@ -226,22 +299,150 @@ describe("Spec testing", function() {
           signatureData: jasmine.any(String)
         }
       };
+
+      expectedTransferAccessClientMessage3NoMatchingKeys = {
+        type: "transfer_access_client_message",
+        code: DeviceStatusCodes.OK_STATUS,
+        messageNumber: 3,
+        transferAccessChains: []
+      };
+
+      expectedTransferAccessClientMessage3NoExistingChain = {
+        type: "transfer_access_client_message",
+        code: DeviceStatusCodes.OK_STATUS,
+        messageNumber: 3,
+        transferAccessChains: [
+          {
+            appIdHash: appIdHash,
+            keyHandle: keyHandle,
+            originalKeyHandle: keyHandle,
+            transferAccessMessageChain: jasmine.any(Uint8Array)
+          }
+        ]
+      };
+
+      expectedTransferAccessClientMessage3ExistingChain = {
+        type: "transfer_access_client_message",
+        code: DeviceStatusCodes.OK_STATUS,
+        messageNumber: 3,
+        transferAccessChains: [
+          {
+            appIdHash: appIdHash,
+            keyHandle: keyHandle,
+            originalKeyHandle: originalKeyHandle,
+            transferAccessMessageChain: jasmine.any(Uint8Array)
+          }
+        ]
+      };
     });
 
     // softokkenhelper to softokkenhelper communication
-    it("should generate key handle and public key when asked", function() {
-    });
+    it("should return WRONG_DATA_STATUS if the message is not valid",
+       function() {
+         transferAccessClientMessage1.messageNumber = 0;
+         softTokenTransferAccessHandler.request_ = transferAccessClientMessage1;
+         let softTokenTransferAccessResponse =
+             softTokenTransferAccessHandler.run(this.callback);
+         expect(softTokenTransferAccessResponse).toBe(true);
+         expect(this.callback)
+           .toHaveBeenCalledWith(expectedTransferAccessWrongDataStatus);
+         transferAccessClientMessage1.messageNumber = -1;
+         softTokenTransferAccessHandler.request_ = transferAccessClientMessage1;
+         softTokenTransferAccessResponse =
+             softTokenTransferAccessHandler.run(this.callback);
+         expect(softTokenTransferAccessResponse).toBe(true);
+         expect(this.callback)
+           .toHaveBeenCalledWith(expectedTransferAccessWrongDataStatus);
+         transferAccessClientMessage1.messageNumber = 5;
+         softTokenTransferAccessHandler.request_ = transferAccessClientMessage1;
+         softTokenTransferAccessResponse =
+             softTokenTransferAccessHandler.run(this.callback);
+         expect(softTokenTransferAccessResponse).toBe(true);
+         expect(this.callback)
+           .toHaveBeenCalledWith(expectedTransferAccessWrongDataStatus);
+         transferAccessClientMessage1.messageNumber = 1;
+         transferAccessClientMessage1.type = "something else";
+         softTokenTransferAccessHandler.request_ = transferAccessClientMessage1;
+         softTokenTransferAccessResponse =
+             softTokenTransferAccessHandler.run(this.callback);
+         expect(softTokenTransferAccessResponse).toBe(true);
+         expect(this.callback)
+           .toHaveBeenCalledWith(expectedTransferAccessWrongDataStatus);
+       });
+
+    it("should initiate a transfer of access by sending " +
+       "[versionNum, appId, keyHandle] for each account to be transferred",
+       function() {
+         // TODO: All
+         let softTokenTransferAccessResponse =
+             softTokenProfile.runTransferAccess();
+       });
+
+    it("should initiate a transfer of access by sending " +
+       "[versionNum, appId, keyHandle] for each account to be transferred." +
+       "It should not send keys that aren't indicated",
+       function() {
+         // TODO: all
+         let softTokenTransferAccessResponse =
+             softTokenProfile.runTransferAccess();
+       });
 
     it("should return an attestation cert and <key handle, pubkey> pair in " +
        "response", function() {
+         softTokenTransferAccessHandler.request_ = transferAccessClientMessage1;
+         let softTokenTransferAccessResponse =
+             softTokenTransferAccessHandler.run(this.callback);
+         expect(softTokenTransferAccessResponse).toBe(true);
+         expect(softTokenProfile.registrations).not.toBe([]);
+         expect(
+           softTokenProfile.registrations[0].waitingOnTransferAccessMessageNumber)
+           .toBe(3);
+         transferAccessClientMessage2.newPubKeys[0].keyHandle =
+           jasmine.any(String);
+         transferAccessClientMessage2.newPubKeys[0].pubKey =
+           jasmine.any(String);
+         expect(this.callback)
+           .toHaveBeenCalledWith(transferAccessClientMessage2);
        });
     
     it("should create a transfer access message and send it to the other " +
        "profile", function() {
+         exampleRegistration.waitingOnTransferAccessMessageNumber = 2;
+         softTokenProfile.registrations = [exampleRegistration];
+         softTokenTransferAccessHandler.request_ = transferAccessClientMessage2;
+         let softTokenTransferAccessResponse =
+             softTokenTransferAccessHandler.run(this.callback);
+         expect(softTokenTransferAccessResponse).toBe(true);
+         expect(this.callback)
+           .toHaveBeenCalledWith(expectedTransferAccessClientMessage3NoExistingChain);
        });
 
-    it("should add to a chain if one is passed to it", function() {
+    it("should not create a transfer access message when the appID and " +
+       "keyHandle do not match", function() {
+         exampleNewRegistration.waitingOnTransferAccessMessageNumber = 2;
+         softTokenProfile.registrations = [exampleNewRegistration];
+         softTokenTransferAccessHandler.request_ = transferAccessClientMessage2;
+         let softTokenTransferAccessResponse =
+             softTokenTransferAccessHandler.run(this.callback);
+         expect(softTokenTransferAccessResponse).toBe(true);
+         expect(this.callback)
+           .toHaveBeenCalledWith(expectedTransferAccessClientMessage3NoMatchingKeys);
+       });
+
+    // TODO: Is this sufficient? It doesn't test the transferAccessMessageChain.
+    it("should add to a chain if one already exists", function() {
+      exampleRegistration.waitingOnTransferAccessMessageNumber = 2;
+      softTokenProfile.registrations = [exampleRegistration];
+      softTokenProfile.transferAccessChains = [exampleTransferAccessChain];
+      softTokenTransferAccessHandler.request_ = transferAccessClientMessage2;
+      let softTokenTransferAccessResponse =
+        softTokenTransferAccessHandler.run(this.callback);
+      expect(softTokenTransferAccessResponse).toBe(true);
+      expect(this.callback)
+        .toHaveBeenCalledWith(expectedTransferAccessClientMessage3ExistingChain);
     });
+
+    // TODO: Check responses when messages are empty or don't contain enough data
 
     it("should generate and return a transferAccessMessage", function() {
     });
@@ -249,8 +450,34 @@ describe("Spec testing", function() {
     it("should return a chain if it has a chain stored", function() {
     });
 
+    // TODO: should store the transfer access message and return an ack.
     it("should send an ack", function() {
+      softTokenTransferAccessHandler.request_ = transferAccessClientMessage3;
+      let softTokenTransferAccessResponse =
+        softTokenTransferAccessHandler.run(this.callback);
+      expect(softTokenTransferAccessResponse).toBe(true);
+      expect(this.callback).toHaveBeenCalledWith(transferAccessClientMessage4);
     });
+
+    it("should delete keys upon receiving an ack", function() {
+      exampleRegistration.waitingOnTransferAccessMessageNumber = 4;
+      softTokenProfile.registrations = [exampleRegistration];
+      softTokenProfile.transferAccessChains = [exampleTransferAccessChain];
+      let softTokenTransferAccessResponse =
+          softTokenTransferAccessHandler.run(this.callback);
+      expect(softTokenTransferAccessResponse).toBe(true);
+      expect(softTokenProfile.registrations).toEqual([]);
+      expect(softTokenProfile.transferAccessChains).toEqual([]);
+    });
+
+    it("should not delete keys upon receiving an ack if those keys haven't " +
+       "been transferred", function() {
+         softTokenProfile.registrations = [exampleRegistration];
+         let softTokenTransferAccessResponse =
+             softTokenTransferAccessHandler.run(this.callback);
+         expect(softTokenTransferAccessResponse).toBe(true);
+         expect(softTokenProfile.registrations).toEqual([exampleRegistration]);
+       });
 
     it("should be able to transfer access to multiple accounts on the same " +
        "domain", function() {
