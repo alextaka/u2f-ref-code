@@ -39,7 +39,8 @@ var SoftTokenKeyPair;
  *    appIdHash: string,
  *    keyHandle: string,
  *    keys: !SoftTokenKeyPair,
- *    counter: number
+ *    counter: number,
+ *    waitingOnTransferAccessMessageNumber: integer || undefined
  * }}
  */
 var SoftTokenRegistration;
@@ -138,9 +139,18 @@ SoftTokenProfile.prototype.createRegistration = function(appIdHash, keypair) {
   return registration;
 };
 
+/**
+ *                              //TODO: (what should we pass and return?
+ * @return {boolean} Whether this could be run.
+ **/
+SoftTokenProfile.prototype.runTransferAccess = function() {
+  // TODO: marks all keys to be transferred as waiting for message 2
+  // TODO: creates a handler to listen for responses
+  // 
+};
 
 /**
- * Initializes a new transferAccessChain and stores in the profile.
+ * Initializes a new transferAccessChain and stores it in the profile.
  * @param {SoftTokenRegistration} registration
  * @param {string} originalKeyHandle
  * @param {string} transferAccessMessageChain
@@ -217,9 +227,9 @@ SoftTokenProfile.prototype.buildTransferAccessMessage =
            signBufferForSignatureUsingPrivateKey.length);
 
     const ecdsaOldAttestationKey =
-          generateKey(UTIL_HexToArray(this.profile_.attestationKey));
+          generateKey(UTIL_HexToArray(this.attestationKey));
     const signatureUsingOldAttestationKey = UTIL_JsonSignatureToAsn1(
-      ecdsa.sign(signBufferForSignatureUsingAttestationKey));
+      ecdsaOldAttestationKey.sign(signBufferForSignatureUsingAttestationKey));
 
     // Build TransferAccessMessage
     const lengthOfSignatureField = 1;
@@ -259,6 +269,7 @@ SoftTokenProfile.prototype.buildTransferAccessMessage =
     return transferAccessMessageData;
   };
 
+
 /**
  * Looks up an existing registration by appId and keyHandle.
  * Returns null if not found.
@@ -278,25 +289,130 @@ SoftTokenProfile.prototype.getRegistration = function(appIdHash, keyHandle) {
 
 
 /**
+ * Looks up an existing registration by appId and keyHandle.
+ * Returns null if not found.
+ * @param {string} appIdHash in base64-urlsafe
+ * @param {string} oldKeyHandle in base64-urlsafe
+ * @return {?SoftTokenRegistration}
+ */
+SoftTokenProfile.prototype.getRegistrationByOldKeyHandle =
+  function(appIdHash, oldKeyHandle) {
+  var reg = null;
+  for (var i = 0; i < this.registrations.length; ++i) {
+    reg = this.registrations[i];
+    if (reg.appIdHash === appIdHash && reg.oldKeyHandle === oldKeyHandle)
+      return reg;
+  }
+  return null;
+};
+
+
+/**
+ * Looks up an existing registration by appId and keyHandle and removes it from
+ * stored registrations.
+ * Returns true if found
+ * Returns false if not found.
+ * @param {string} appIdHash in base64-urlsafe
+ * @param {string} keyHandle in base64-urlsafe
+ * @return {boolean}
+ */
+SoftTokenProfile.prototype.removeRegistration = function(appIdHash, keyHandle) {
+  var reg = null;
+  for (var i = 0; i < this.registrations.length; ++i) {
+    reg = this.registrations[i];
+    if (reg.appIdHash == appIdHash && reg.keyHandle == keyHandle)
+      this.registrations.splice(i, 1);
+      return true;
+  }
+  return false;
+};
+
+
+/**
  * Looks up an existing transferAccessChain by appId and keyHandle and
- * pops it out of the transferAccessChains array;
+ * pops it out of the transferAccessChains array.
  * Returns null if not found.
  * @param {string} appIdHash in base64-urlsafe
  * @param {string} keyHandle in base64-urlsafe
  * @return {?SoftTokenTransferAccessChain}
  */
-SoftTokenProfile.prototype.getAndPopTransferAccessChain =
+SoftTokenProfile.prototype.getTransferAccessChain =
   function(appIdHash, keyHandle) {
     let chain = null;
     for (let i = 0; i < this.transferAccessChains.length; ++i) {
       chain = this.transferAccessChains[i];
       if (chain.registration.appIdHash === appIdHash &&
           chain.originalKeyHandle === keyHandle) {
+        return chain;
+      }
+    }
+    return null;
+  };
+
+
+/**
+ * Looks up an existing transferAccessChain by matching registration.
+ * returns null if not found.
+ * @param {!SoftTokenRegistration} registration
+ * return {?SoftTokenTransferAccessChain}
+ */
+SoftTokenProfile.prototype.getTransferAccessChainByRegistration =
+  function(registration) {
+    let chain = null;
+    for (let i = 0; i < this.transferAccessChains.length; ++i) {
+      chain = this.transferAccessChains[i];
+      if (chain.registration.appIdHash === registration.appIdHash &&
+          chain.registration.keyHandle === registration.keyHandle) {
         this.transferAccessChains.splice(i, 1);
         return chain;
       }
     }
     return null;
+  };
+
+
+/**
+ * Looks up an existing transferAccessChain by appId and original keyHandle
+ * and removes it from the transferAccessChains array.
+ * returns false if not found.
+ * @param {string} appIdHash in base64-urlsafe
+ * @param {string} originalKeyHandle in base64-urlsafe
+ * @return {boolean}
+ */
+SoftTokenProfile.prototype.removeTransferAccessChain =
+  function(appIdHash, originalKeyHandle) {
+    let chain = null;
+    for (let i = 0; i < this.transferAccessChains.length; ++i) {
+      chain = this.transferAccessChains[i];
+      if (chain.registration.appIdHash === appIdHash &&
+          chain.originalKeyHandle === originalKeyHandle) {
+        this.transferAccessChains.splice(i, 1);
+        return true;
+      }
+    }
+    return false;
+  };
+
+
+/**
+ * Looks up an existing transferAccessChain by matching registration
+ * and removes it from the transferAccessChains array.
+ * returns false if not found.
+ * @param {!SoftTokenRegistration} registration
+ * return {boolean}
+ */
+SoftTokenProfile.prototype.removeTransferAccessChainByRegistration =
+  function(registration) {
+    let chain = null;
+    for (let i = 0; i < this.transferAccessChains.length; ++i) {
+      chain = this.transferAccessChains[i];
+      if (chain.registration.appIdHash === registration.appIdHash &&
+          chain.registration.keyHandle === registration.keyHandle) {
+        this.transferAccessChains.splice(i, 1);
+        return true;
+      }
+    }
+    return false;
   };
 
 
@@ -321,6 +437,16 @@ SoftTokenProfile.prototype.hasMatchingTransferAccessChain =
     return false;
   };
 
+/**
+ * Clears the isBeingTransferredFlag for every stored registration.
+ * @return {boolean}
+ */
+SoftTokenProfile.prototype.clearWaitingOnTransferAccessMessageNumber = function() {
+  for (let i = 0; i < this.registrations.length; i++) {
+    delete this.registrations[i].waitingOnTransferAccessMessageNumber;
+  }
+  return true;
+};
 
 /**
  * @param {!Object} profile
@@ -492,6 +618,7 @@ SoftTokenSignHandler.prototype.run = function(cb) {
     }
   }
 
+  
   // See if any of the keyHandles refer to transferAccessMessages
   let transferAccessChain = null;
   let isTransferAccess = false;
@@ -500,8 +627,9 @@ SoftTokenSignHandler.prototype.run = function(cb) {
     if (sd.version != 'U2F_V2')
       continue;
     transferAccessChain =
-      this.profile_.getAndPopTransferAccessChain(sd.appIdHash, sd.keyHandle);
+      this.profile_.getTransferAccessChain(sd.appIdHash, sd.keyHandle);
     if (transferAccessChain && !keyHandleMatchesStoredRegistration) {
+      this.profile_.removeTransferAccessChain(sd.appIdHash, sd.keyHandle);
       signData = sd;
       isTransferAccess = true;
       break;
@@ -711,3 +839,206 @@ SoftTokenSignHandler.prototype.close = function() {
   // No-op
 };
 
+
+/**
+ * @param {!Object} profile
+ * @param {*} request
+ * @constructor
+ * @implements {RequestHandler}
+ */
+function SoftTokenTransferAccessHandler(profile, request) {
+  this.profile_ = profile;
+  this.request_ = request;
+}
+
+/**
+ * @param {RequestHandlerCallback} cb Called with the result of the request
+ * @return {boolean} Whether this handler could be run.
+ */
+SoftTokenTransferAccessHandler.prototype.run = function(cb) {
+  console.log('SoftTokenEnrollHandler.run', this.request_);
+  let wrongDataStatus = {
+    type: 'transfer_access_client_message',
+    code: DeviceStatusCodes.WRONG_DATA_STATUS
+  };
+
+  if (this.request_.type !== "transfer_access_client_message" ||
+      typeof this.request_.messageNumber !== "number" ||
+      this.request_.messageNumber < 1 ||
+      this.request_.messageNumber > 4) {
+    cb(wrongDataStatus);
+    return true;
+  }
+
+  if (this.request_.messageNumber === 1) {
+    let transferAccessClientMessage2 = {
+      type: "transfer_access_client_message",
+      code: DeviceStatusCodes.OK_STATUS,
+      messageNumber: 2,
+      attestationCert: this.profile_.attestationCert,
+      newPubKeys: []
+    };
+
+    for (let i = 0; i < this.request_.transfers.length; i++) {
+      let transfer = this.request_.transfers[i];
+
+      if (transfer.version != 'U2F_V2') {
+        transferAccessClientMessage2 = wrongDataStatus;
+        continue;
+      }
+
+      let keyPair;
+      if (SoftTokenHelper.keyPairForTesting) {
+        keyPair = SoftTokenHelper.keyPairForTesting;
+      } else {
+        var tmpEcdsa = generateKey();
+        keyPair = {
+          sec: UTIL_BytesToHex(tmpEcdsa.getPrivateKey()),
+          pub: UTIL_BytesToHex(tmpEcdsa.getPublicKey())
+        };
+      }
+      var registration =
+        this.profile_.createRegistration(transfer.appIdHash, keyPair);
+      registration.waitingOnTransferAccessMessageNumber = 3;
+      registration.oldKeyHandle = transfer.keyHandle;
+      transferAccessClientMessage2.newPubKeys.push({
+        appIdHash: transfer.appIdHash,
+        keyHandle: transfer.keyHandle,
+        pubKey: registration.keys.pub
+      });
+    }
+
+    cb(transferAccessClientMessage2);
+    return true;
+  }
+
+  if (this.request_.messageNumber === 2) {
+    let newAttestationCert = this.request_.attestationCert;
+
+    let transferAccessClientMessage3 = {
+      type: "transfer_access_client_message",
+      code: DeviceStatusCodes.OK_STATUS,
+      messageNumber: 3,
+      transferAccessChains: []
+    };
+
+    for (let i = 0; i < this.request_.newPubKeys.length; i++) {
+      let newPubKeyObject = this.request_.newPubKeys[i];
+      let newPubKey = newPubKeyObject.pubKey;
+      let registration =
+        this.profile_.getRegistration(newPubKeyObject.appIdHash,
+                                      newPubKeyObject.keyHandle);
+
+      if (registration !== null &&
+          registration.waitingOnTransferAccessMessageNumber === 2) {
+        let transferAccessChain =
+          this.profile_.getTransferAccessChainByRegistration(registration);
+
+        let sequenceNumber = 1;
+        let transferAccessMessageChain = [];
+        let originalKeyHandle = registration.keyHandle;
+
+        if (transferAccessChain !== null) {
+          if (typeof transferAccessChain.originalKeyHandle === "string") {
+            originalKeyHandle = transferAccessChain.originalKeyHandle;
+          }
+
+          if (transferAccessChain.transferAccessMessageChain.constructor ===
+              Uint8Array) {
+            transferAccessMessageChain =
+              transferAccessChain.transferAccessMessageChain;
+            sequenceNumber += transferAccessMessageChain[0];
+          }
+        };
+
+        let transferAccessMessage =
+          this.profile_.buildTransferAccessMessage(sequenceNumber,
+                                                   newPubKey,
+                                                   registration,
+                                                   newAttestationCert);
+
+        let newTransferAccessMessageChain =
+          new Uint8Array(transferAccessMessage.length +
+                         transferAccessMessageChain.length);
+        newTransferAccessMessageChain.set(transferAccessMessage, 0);
+        if (transferAccessMessageChain.length > 0) {
+          newTransferAccessMessageChain.set(transferAccessMessageChain,
+                                            transferAccessMessage.length);          
+        }
+
+        let returningTransferAccessMessageChain;
+        returningTransferAccessMessageChain = {
+          appIdHash: registration.appIdHash,
+          keyHandle: registration.keyHandle,
+          originalKeyHandle: originalKeyHandle,
+          transferAccessMessageChain: newTransferAccessMessageChain
+        };
+
+        transferAccessClientMessage3.transferAccessChains
+          .push(returningTransferAccessMessageChain);
+
+        registration.waitingOnTransferAccessMessageNumber = 4;
+      }
+    }
+
+    cb(transferAccessClientMessage3);
+    return true;
+  }
+
+  if (this.request_.messageNumber === 3) {
+    let transferAccessClientMessage4 = {
+      type: "transfer_access_client_message",
+      code: DeviceStatusCodes.OK_STATUS,
+      messageNumber: 4,
+      acks: []
+    };
+
+    for (let i = 0; i < this.request_.transferAccessChains.length; ++i) {
+      // Store the transfer access message
+      let transferAccessChain = this.request_.transferAccessChains[i];
+      let transferAccessMessageChain =
+        transferAccessChain.transferAccessMessageChain;
+      let appIdHash = transferAccessChain.appIdHash;
+      let keyHandle = transferAccessChain.keyHandle;
+      let originalKeyHandle = transferAccessChain.originalKeyHandle;
+      let registration = this.profile_.getRegistrationByOldKeyHandle(appIdHash, keyHandle);
+      this.profile_.createTransferAccessChain(registration,
+                                              originalKeyHandle,
+                                              transferAccessMessageChain);
+
+      let ack = {
+        appIdHash: appIdHash,
+        keyHandle: keyHandle
+      };
+
+      transferAccessClientMessage4.acks.push(ack);
+    }
+
+    cb(transferAccessClientMessage4);
+    return true;
+  }
+
+  if (this.request_.messageNumber === 4) {
+  // TODO: What do we do with the callback?
+    for (let i = 0; i < this.request_.acks.length; i++) {
+      let ack = this.request_.acks[i];
+      let reg = this.profile_.getRegistration(ack.appIdHash, ack.keyHandle);
+      if (reg.waitingOnTransferAccessMessageNumber === 4) {
+        this.profile_.removeRegistration(ack.appIdHash, ack.keyHandle);
+        this.profile_.removeTransferAccessChainByRegistration(reg);
+      }
+    }
+    
+    this.profile_.clearWaitingOnTransferAccessMessageNumber();
+    return true;
+  }
+
+  return false;
+};
+
+/**
+ * Closes this handler.
+ */
+SoftTokenTransferAccessHandler.prototype.close = function() {
+  this.profile_.clearWaitingOnTransferAccessMessageNumber();
+};

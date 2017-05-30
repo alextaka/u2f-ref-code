@@ -203,6 +203,62 @@ var sign_helper_reply = {
 };
 ```
 
+It can also send and reply with subsequent transfer access messages:
+```javascript
+
+var transfer_access_client_message_1 = {
+  "type": "transfer_access_client_message,
+  "code": result,  // from DeviceStatusCodes
+  "messageNumber": 1,
+  "transfers": [
+    {
+      "version": undefined || "U2F_V1" || "U2F_V2",
+      "appIdHash": websafe-b64,
+      "keyHandle": websafe-b64
+    }+
+  ],
+};
+
+var transfer_access_client_message_2 = {
+  "type": "transfer_access_client_message",
+  "code": result,  // from DeviceStatusCodes
+  "messageNumber": 2,
+  "attestationCert": hex-string,
+  "newPubKeys": [
+    {
+      "appIdHash": websafe-b64,
+      "keyHandle": websafe-b64,
+      "pubKey": hex-string
+    }+
+  ],
+};
+
+var transfer_access_client_message_3 = {
+  "type": "transfer_access_client_message",
+  "code": result,  // from DeviceStatusCodes
+  "messageNumber": 3,
+  "transferAccessChains" = [
+    {
+      "appIdHash": websafe-b64,
+      "keyHandle": websafe-b64,
+      "originalKeyHandle": websafe-b64
+      "transferAccessMessageChain": hex-string
+    }+
+  ],
+};
+
+var transfer_access_client_message_4 = {
+  "type": "transfer_access_client_message",
+  "code": result,  // from DeviceStatusCodes
+  "messageNumber": 4,
+  "acks": [
+    {
+      "appIdHash": websafe-b64,
+      "keyHandle": websafe-b64
+    }+
+  ],
+};
+```
 ## Testing servers without a physical token
 
 For testing server implementations without a physical token, the file
